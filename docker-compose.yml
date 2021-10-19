@@ -1,10 +1,7 @@
 version: "3"
 services:
   master:
-    image: ${DOCKER_REGISTRY-}openeuler_open_gauss
-    build:
-      context: .
-      dockerfile: openeuler_open_gauss/Dockerfile
+    image: lsqtzj/openeuler_open_gauss
     restart: always
     container_name: master
     hostname: master
@@ -28,10 +25,7 @@ services:
       - "pgadmin4:10.8.0.18"
 
   slave01:
-    image: ${DOCKER_REGISTRY-}openeuler_open_gauss
-    build:
-      context: .
-      dockerfile: openeuler_open_gauss/Dockerfile
+    image:  lsqtzj/openeuler_open_gauss
     restart: always
     container_name: slave01
     hostname: slave01
@@ -54,10 +48,7 @@ services:
       - master
 
   slave02:
-    image: ${DOCKER_REGISTRY-}openeuler_open_gauss
-    build:
-      context: .
-      dockerfile: openeuler_open_gauss/Dockerfile
+    image:  lsqtzj/openeuler_open_gauss
     restart: always
     container_name: slave02
     hostname: slave02
@@ -80,10 +71,7 @@ services:
       - master
   
   pgadmin4:
-    image: ${DOCKER_REGISTRY-}openeuler_pgadmin4
-    build:
-      context: .
-      dockerfile: openeuler_pgadmin4/Dockerfile
+    image:  lsqtzj/openeuler_pgadmin4
     restart: always
     container_name: pgadmin4
     hostname: pgadmin4
