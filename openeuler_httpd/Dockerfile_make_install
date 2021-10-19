@@ -1,0 +1,76 @@
+FROM openeuler/openeuler:20.03
+
+EXPOSE 80
+
+WORKDIR /opt
+
+COPY ./openeuler_httpd/httpd-2.4.51.tar.gz httpd-2.4.51.tar.gz
+COPY ./openeuler_httpd/apr-1.7.0.tar.gz apr-1.7.0.tar.gz
+COPY ./openeuler_httpd/apr-util-1.6.1.tar.gz apr-util-1.6.1.tar.gz
+
+RUN yum install -y wget apr-devel apr-util-devel pcre-devel gcc make tar gcc-c++ \
+    pcre openssl openssl-devel zlib unzip cmake ncurses-devel expat-devel libjpeg \
+    libjpeg-devel libpng libxml2 libxml2-devel curl-devel libtool libtool-ltdl libtool-ltdl-devel \
+    libevent libevent-devel zlib-static zlib-devel autoconf gd perl freetype freetype-devel \
+    doxygen libuuid-devel python rpm-build
+RUN yum update -y
+RUN tar -axvf httpd-2.4.51.tar.gz
+RUN tar -axvf apr-1.7.0.tar.gz
+RUN tar -axvf apr-util-1.6.1.tar.gz
+RUN cd /opt/apr-1.7.0  && \
+    sed -i "/RM='\$RM'/c\\\t\\tRM='\$RM -f'" configure  && \
+    ./configure --prefix=/etc/apr/ && \
+    make -j4 && make install && \
+    true
+
+RUN cd /opt/apr-util-1.6.1 && \
+    ./configure --prefix=/etc/apr-util --with-apr=/etc/apr && \
+    make -j4 && make install && \
+    true
+
+RUN cd /opt/httpd-2.4.46 && \
+    ./configure --prefix=/etc/apache/ \
+    --sysconfdir=/etc/httpd/ \
+    --with-include-apr \
+    --disable-userdir \
+    --enable-headers \
+    --with-mpm=worker \
+    --enable-modules=most \
+    --enable-so \
+    --enable-deflate \
+    --enable-defate=shared \
+    --enable-expires-shared \
+    --enable-rewrite=shared \
+    --enable-static-support \
+    --with-apr=/etc/apr/ \
+    --with-apr-util=/etc/apr-util/bin \
+    --with-ssl \
+    --with-z && \
+    make -j4 && make install && \
+    true
+
+RUN rm -rf /opt/*
+RUN groupadd www && useradd -g www www -s /bin/false 
+RUN sed -i "/^User daemon/c\User www"  /etc/httpd/httpd.conf
+RUN sed -i "/^Group daemon/c\Group www"  /etc/httpd/httpd.conf
+RUN sed -i "/^#ServerName/c\ServerName localhost:80" /etc/httpd/httpd.conf
+
+RUN cp /etc/apache/bin/apachectl /etc/init.d/httpd
+RUN sed -i "2i####STA\n#chkconfig:345 61 61\n#description:Apache httpd\n####END\n"  /etc/init.d/httpd
+RUN echo "<html><body><h1>openEuler " > /etc/apache/htdocs/index.html && \
+    cat /etc/os-release  |  grep ^VERSION= >> /etc/apache/htdocs/index.html && \
+    echo "</h1><h2>" >> /etc/apache/htdocs/index.html && \
+    httpd -v | head -n 1 | tee -a /etc/apache/htdocs/index.html && \
+    echo "</h2></body></html>" >> /etc/apache//htdocs/index.html && \
+    true
+
+RUN chkconfig --add httpd
+RUN chkconfig --level 2345 httpd on
+RUN yum clean all
+
+COPY ./openeuler_httpd/main.sh main.sh
+RUN chmod +x /opt/main.sh
+
+ENV PATH=$PATH:/etc/apache/bin/
+ENTRYPOINT [ "/opt/main.sh"]
+CMD ["/bin/bash"]
