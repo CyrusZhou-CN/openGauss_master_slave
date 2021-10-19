@@ -1,0 +1,113 @@
+version: "3"
+services:
+  master:
+    image: ${DOCKER_REGISTRY-}openeuler_open_gauss
+    build:
+      context: .
+      dockerfile: openeuler_open_gauss/Dockerfile
+    restart: always
+    container_name: master
+    hostname: master
+    networks:
+      otter:
+        ipv4_address: 10.8.0.10
+    ports:
+      - 15432:5432
+      - 8980:80
+    environment:
+      TZ: Europe/Rome #Asia/Shanghai 时区
+      NODE_NAME: datanode1
+      RUN_MODE: "master" #默认主机
+      GAUSS_USER: gauss   #远程管理员
+      GAUSS_PASSWORD: Gauss666 #密码
+      REMOTEHOST: 10.8.0.11 10.8.0.12
+    extra_hosts:
+      - "master:10.8.0.10"
+      - "slave01:10.8.0.11"
+      - "slave02:10.8.0.12"
+      - "pgadmin4:10.8.0.18"
+
+  slave01:
+    image: ${DOCKER_REGISTRY-}openeuler_open_gauss
+    build:
+      context: .
+      dockerfile: openeuler_open_gauss/Dockerfile
+    restart: always
+    container_name: slave01
+    hostname: slave01
+    networks:
+      otter:
+        ipv4_address: 10.8.0.11
+    environment:
+      TZ: Europe/Rome #Asia/Shanghai 时区
+      GAUSS_USER: gauss
+      GAUSS_PASSWORD: Gauss666
+      NODE_NAME: datanode2
+      RUN_MODE: "slave"
+      REMOTEHOST: 10.8.0.10 10.8.0.12
+    extra_hosts:
+      - "master:10.8.0.10"
+      - "slave01:10.8.0.11"
+      - "slave02:10.8.0.12"
+      - "pgadmin4:10.8.0.18"
+    depends_on:
+      - master
+
+  slave02:
+    image: ${DOCKER_REGISTRY-}openeuler_open_gauss
+    build:
+      context: .
+      dockerfile: openeuler_open_gauss/Dockerfile
+    restart: always
+    container_name: slave02
+    hostname: slave02
+    networks:
+      otter:
+        ipv4_address: 10.8.0.12
+    environment:
+      TZ: Europe/Rome #Asia/Shanghai 时区
+      GAUSS_USER: gauss
+      GAUSS_PASSWORD: Gauss666
+      NODE_NAME: datanode3
+      RUN_MODE: "slave"
+      REMOTEHOST: 10.8.0.10 10.8.0.11
+    extra_hosts:
+      - "master:10.8.0.10"
+      - "slave01:10.8.0.11"
+      - "slave02:10.8.0.12"
+      - "pgadmin4:10.8.0.18"
+    depends_on:
+      - master
+  
+  pgadmin4:
+    image: ${DOCKER_REGISTRY-}openeuler_pgadmin4
+    build:
+      context: .
+      dockerfile: openeuler_pgadmin4/Dockerfile
+    restart: always
+    container_name: pgadmin4
+    hostname: pgadmin4
+    networks:
+      otter:
+        ipv4_address: 10.8.0.18
+    ports:
+      - 9980:80
+    environment:
+      TZ: Europe/Rome #Asia/Shanghai 时区
+      PGADMIN_DEFAULT_EMAIL: admin@domain.com # pgadmin4管理员
+      PGADMIN_DEFAULT_PASSWORD: admin         # pgadmin4管理员密码
+    extra_hosts:
+      - "master:10.8.0.10"
+      - "slave01:10.8.0.11"
+      - "slave02:10.8.0.12"
+      - "pgadmin4:10.8.0.18"
+    depends_on:
+      - master
+
+networks:
+  otter:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 10.8.0.0/16
+          gateway: 10.8.0.1
