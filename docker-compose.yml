@@ -1,15 +1,12 @@
 version: "3"
-services:
+services:  
   master:
-    image: ${DOCKER_REGISTRY-}openeuler_open_gauss
-    build:
-      context: .
-      dockerfile: openeuler_open_gauss/Dockerfile
+    image: lsqtzj/openeuler_open_gauss
     restart: always
     container_name: master
     hostname: master
     networks:
-      otter:
+      gauss:
         ipv4_address: 10.8.0.10
     ports:
       - 15432:5432
@@ -28,15 +25,12 @@ services:
       - "pgadmin4:10.8.0.18"
 
   slave01:
-    image: ${DOCKER_REGISTRY-}openeuler_open_gauss
-    build:
-      context: .
-      dockerfile: openeuler_open_gauss/Dockerfile
+    image:  lsqtzj/openeuler_open_gauss
     restart: always
     container_name: slave01
     hostname: slave01
     networks:
-      otter:
+      gauss:
         ipv4_address: 10.8.0.11
     environment:
       TZ: Europe/Rome #Asia/Shanghai 时区
@@ -54,15 +48,12 @@ services:
       - master
 
   slave02:
-    image: ${DOCKER_REGISTRY-}openeuler_open_gauss
-    build:
-      context: .
-      dockerfile: openeuler_open_gauss/Dockerfile
+    image:  lsqtzj/openeuler_open_gauss
     restart: always
     container_name: slave02
     hostname: slave02
     networks:
-      otter:
+      gauss:
         ipv4_address: 10.8.0.12
     environment:
       TZ: Europe/Rome #Asia/Shanghai 时区
@@ -80,15 +71,12 @@ services:
       - master
   
   pgadmin4:
-    image: ${DOCKER_REGISTRY-}openeuler_pgadmin4
-    build:
-      context: .
-      dockerfile: openeuler_pgadmin4/Dockerfile
+    image:  lsqtzj/openeuler_pgadmin4
     restart: always
     container_name: pgadmin4
     hostname: pgadmin4
     networks:
-      otter:
+      gauss:
         ipv4_address: 10.8.0.18
     ports:
       - 9980:80
@@ -105,7 +93,7 @@ services:
       - master
 
 networks:
-  otter:
+  gauss:
     driver: bridge
     ipam:
       config:

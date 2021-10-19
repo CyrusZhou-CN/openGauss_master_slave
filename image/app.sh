@@ -154,7 +154,7 @@ function stop_db(){
         su omm -c "gs_ctl stop -D $GAUSSHOME/data -M primary"
     else
         echo "[build and start slave data node.]"
-        su omm -c "gs_ctl stop -D $GAUSSHOME/data -M standby"
+        su omm -c "e"
     fi
     
 }
