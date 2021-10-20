@@ -6,7 +6,7 @@ COPY ./openeuler_python/python/ /tmp/
 
 RUN yum -y update && yum -y install shadow-utils tar libaio-devel flex bison \
     ncurses-devel glibc-devel patch libnsl readline-devel telnet \
-    make gcc zlib zlib-static zlib-devel && \
+    make gcc zlib zlib-static zlib-devel python3-psycopg2 python3-devel libffi-devel && \
     yum clean all   
 
 # 编译安装 openssl
@@ -30,7 +30,9 @@ RUN tar -xvf /tmp/Python-*.tar.xz -C /opt/ && rm -rf /tmp/Python-*.tar.xz && \
     ln -sf /usr/local/python3.7/bin/python3.7 /usr/bin/python && \
     ln -sf /usr/local/python3.7/bin/pip3 /usr/bin/pip3 && \
     ln -sf /usr/local/python3.7/bin/pip3 /usr/bin/pip && \
-    /usr/local/python3.7/bin/python3 -m pip install --upgrade pip
+    /usr/local/python3.7/bin/python3 -m pip install --upgrade pip && \
+    /usr/local/python3.7/bin/python3 -m pip install --upgrade setuptools
+# 解决yum dnf出错问题
 RUN cp -rf /usr/lib/python3.7/site-packages/dnf-plugins /usr/local/python3.7/lib/python3.7/site-packages/dnf-plugins && \
     cp -rf /usr/lib/python3.7/site-packages/fros-1.1-py3.7.egg-info /usr/local/python3.7/lib/python3.7/site-packages/fros-1.1-py3.7.egg-info && \
     cp -rf /usr/lib/python3.7/site-packages/pyfros /usr/local/python3.7/lib/python3.7/site-packages/pyfros && \
