@@ -17,7 +17,7 @@ services:
     environment:
       TZ: Europe/Rome #Asia/Shanghai 时区
       NODE_NAME: datanode1
-      RUN_MODE: "master" #默认主机
+      RUN_MODE: "master"  #默认主机
       GAUSS_USER: gauss   #远程管理员
       GAUSS_PASSWORD: Gauss666 #密码
       REMOTEHOST: 10.8.0.11 10.8.0.12
