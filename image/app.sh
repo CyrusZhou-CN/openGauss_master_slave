@@ -81,7 +81,7 @@ function checkStart() {
 function init_db() {
     if [[ ! -f "$GAUSSHOME/data/isconfig" ]]; then
         echo "[step 1]: init data node"    
-        su omm -c "gs_initdb -D $GAUSSHOME/data --nodename=$NODE_NAME -E UTF-8 --locale=en_US.UTF-8 -U omm  -w $GAUSS_PASSWORD"
+        gs_initdb -D $GAUSSHOME/data --nodename=$NODE_NAME -E UTF-8 --locale=en_US.UTF-8 -U omm  -w $GAUSS_PASSWORD
         echo "[step 2]: config datanode."    
         local -a ip_arr
         local -i index=0
@@ -121,11 +121,11 @@ function init_db() {
             echo "host    all             omm             $subnet/24          trust"| tee -a $GAUSSHOME/data/pg_hba.conf
         done
         echo "[step 3]: start single_node." 
-        su omm -c "gs_ctl start -D $GAUSSHOME/data  -Z single_node -l logfile"
+        gs_ctl start -D $GAUSSHOME/data  -Z single_node -l logfile
         echo "[step 4]: CREATE USER $GAUSS_USER." 
-        su omm -c "gsql -d postgres -c \"CREATE USER $GAUSS_USER WITH SYSADMIN CREATEDB USEFT CREATEROLE INHERIT LOGIN REPLICATION IDENTIFIED BY '$GAUSS_PASSWORD';\""
+        gsql -d postgres -c "CREATE USER $GAUSS_USER WITH SYSADMIN CREATEDB USEFT CREATEROLE INHERIT LOGIN REPLICATION IDENTIFIED BY '$GAUSS_PASSWORD';"
         echo "[step 5]: stop single_node." 
-        su omm -c "gs_ctl stop -D $GAUSSHOME/data"
+        gs_ctl stop -D $GAUSSHOME/data
         echo "ok" > $GAUSSHOME/data/isconfig
     fi
 }
@@ -133,47 +133,133 @@ function start_db(){
     echo $RUN_MODE 
     if [ $RUN_MODE == "master" ]; then
         echo "[start primary data node.]"
-        su omm -c "gs_ctl start -D $GAUSSHOME/data -M primary"
+        gs_ctl start -D $GAUSSHOME/data -M primary
         local -i count=0
         for server in $REMOTEHOST; do
             checkStart "check $server" "echo start | telnet $server 5432 | grep -c Connected" 1200
             let count=$count+1    
         done
-        checkStart "check master" "echo start | su omm -c \"gs_ctl query -D $GAUSSHOME/data\" | grep -c sync_percent | grep -c $count" 1200
+        checkStart "check master" "echo start | gs_ctl query -D $GAUSSHOME/data | grep -c sync_percent | grep -c $count" 1200
     else
         echo "[build and start slave data node.]"
         checkStart "check master" "echo start | telnet master 5432 | grep -c Connected" 1200        
-        su omm -c "gs_ctl build -D $GAUSSHOME/data -b full"
-        checkStart "check slave" "echo start | su omm -c \"gs_ctl query -D $GAUSSHOME/data\" | grep -c sync_percent" 1200
+        gs_ctl build -D $GAUSSHOME/data -b full
+        checkStart "check slave" "echo start | gs_ctl query -D $GAUSSHOME/data | grep -c sync_percent" 1200
     fi
 }
 
 function stop_db(){
     if [ $RUN_MODE == "master"  ]; then
         echo "[start primary data node.]"
-        su omm -c "gs_ctl stop -D $GAUSSHOME/data -M primary"
+        gs_ctl stop -D $GAUSSHOME/data -M primary
     else
         echo "[build and start slave data node.]"
-        su omm -c "e"
+        gs_ctl stop -D $GAUSSHOME/data -M standby
     fi
     
 }
 
 function status_db(){
-    su omm -c "ps ux | grep gaussdb"
-    su omm -c "gs_ctl query -D $GAUSSHOME/data"
+    ps ux | grep gaussdb
+    gs_ctl query -D $GAUSSHOME/data
 }
 
 
+# get etcd's parameter ETCD_MEMBERS
+get_ETCD_MEMBERS () {
+        echo "----get_ETCD_MEMBERS-----"
+        ETCD_MEMBERS="${HOST_NAME}=http://${HOST_IP}:2380"
+        echo "ETCD_MEMBERS=$ETCD_MEMBERS"
+        local len=$(($PEER_NUM - 1))
+        for i in $(seq 0 ${len}); do
+                echo "${i}  ${PEER_HOST_NAMES_ARR[$i]}  ${PEER_IPS_ARR[$i]}"
+                ETCD_MEMBERS="${ETCD_MEMBERS},${PEER_HOST_NAMES_ARR[$i]}=http://${PEER_IPS_ARR[$i]}:2380"
+        done
+        echo "ETCD_MEMBERS=$ETCD_MEMBERS"
+}
+# change etcd's config
+# uses environment variables for input: HOST_NAME, HOST_IP, INITIAL_CLUSTER_STATE
+change_etcd_config() {
+        get_ETCD_MEMBERS
+        sed -i "s/^name: 'default'/name: '${HOST_NAME}'/" /home/omm/etcd.conf && \
+        sed -i "s/^listen-peer-urls: http:\/\/localhost:2380/listen-peer-urls: http:\/\/${HOST_IP}:2380/" /home/omm/etcd.conf && \
+        sed -i "s/^initial-advertise-peer-urls: http:\/\/localhost:2380/initial-advertise-peer-urls: http:\/\/${HOST_IP}:2380/" /home/omm/etcd.conf && \
+        sed -i "s/^advertise-client-urls: http:\/\/localhost:2379/advertise-client-urls: http:\/\/${HOST_IP}:2379/" /home/omm/etcd.conf && \
+        sed -i "s|^initial-cluster: initial-cluster|initial-cluster: ${ETCD_MEMBERS}|" /home/omm/etcd.conf
+        if [ -n "${INITIAL_CLUSTER_STATE}" ] && [ "${INITIAL_CLUSTER_STATE}" == "existing" ]; then
+                sed -i "s/initial-cluster-state: 'new'/initial-cluster-state: 'existing'/" /home/omm/etcd.conf
+        fi
+}
+
+# get ETCD_HOSTS
+get_ETCD_HOSTS () {
+    ETCD_HOSTS="${HOST_IP}:2379"
+    for i in $(seq 0 $len); do
+        ETCD_HOSTS="${ETCD_HOSTS},${PEER_IPS_ARR[$i]}:2379"
+    done
+}
+
+# change patroni's config
+# uses environment variables for input: HOST_NAME, HOST_IP, PORT, GS_PASSWORD, GS_PASSWORD
+change_patroni_config() {
+        get_ETCD_HOSTS
+        sed -i "s/^name: name/name: ${HOST_NAME}/" /home/omm/patroni.yaml && \
+        sed -i "s/^  listen: localhost:8008/  listen: ${HOST_IP}:8008/" /home/omm/patroni.yaml && \
+        sed -i "s/^  connect_address: localhost:8008/  connect_address: ${HOST_IP}:8008/" /home/omm/patroni.yaml && \
+        sed -i "s/^  host: localhost:2379/  hosts: ${ETCD_HOSTS}/" /home/omm/patroni.yaml && \
+        sed -i "s/^  listen: localhost:16000/  listen: ${HOST_IP}:${PORT}/" /home/omm/patroni.yaml && \
+        sed -i "s/^  connect_address: localhost:16000/  connect_address: ${HOST_IP}:${PORT}/" /home/omm/patroni.yaml
+        if [ -n "$GS_USERNAME" ] && [ "$GS_USERNAME" != "admin" ]; then
+                sed -i "s/^      username: admin/      username: $GS_USERNAME/" /home/omm/patroni.yaml
+        fi
+        sed -i "s/^      password: huawei_123/      password: $GS_PASSWORD/" /home/omm/patroni.yaml
+}
+
+function set_environment() {
+    local path_env='export PATH=$GAUSSHOME/bin:$PATH:/usr/local/python3.7/bin'
+    local ld_env='export LD_LIBRARY_PATH=$GAUSSHOME/lib:$LD_LIBRARY_PATH'
+    local insert_line=2
+    sed -i "/^\\s*export\\s*GAUSSHOME=/d" ~/.bashrc
+    # set PATH and LD_LIBRARY_PATH
+    if [ X"$(grep 'export PATH=$GAUSSHOME/bin:$PATH' ~/.bashrc)" == X"" ]
+    then
+        echo $path_env >> ~/.bashrc
+    fi
+    if [ X"$(grep 'export LD_LIBRARY_PATH=$GAUSSHOME/lib:$LD_LIBRARY_PATH' ~/.bashrc)" == X"" ]
+    then
+        echo $ld_env >> ~/.bashrc
+    fi
+    if [ X"$(grep 'export GS_CLUSTER_NAME=dbCluster' ~/.bashrc)" == X"" ]
+    then
+        echo 'export GS_CLUSTER_NAME=dbCluster' >> ~/.bashrc
+    fi
+    if [ X"$(grep 'ulimit -n 1000000' ~/.bashrc)" == X"" ]
+    then
+        echo 'ulimit -n 1000000' >> ~/.bashrc
+    fi
+    # set GAUSSHOME
+    path_env_line=$(cat ~/.bashrc | grep -n 'export PATH=$GAUSSHOME/bin:$PATH' | awk -F ':' '{print $1}')
+    ld_env_line=$(grep -n 'export LD_LIBRARY_PATH=$GAUSSHOME/lib:$LD_LIBRARY_PATH' ~/.bashrc | awk -F ':' '{print $1}')
+    echo
+    if [ $path_env_line -gt $ld_env_line ]
+    then
+        let insert_line=$ld_env_line
+    else
+        let insert_line=$path_env_line
+    fi
+    sed -i "$insert_line i\export GAUSSHOME=/opt/software/openGauss" ~/.bashrc
+    source ~/.bashrc
+}
+
 echo "==> START ..."
 
-su omm -c "$GAUSSHOME/set_environment.sh"
+set_environment
 init_db
 start_db
 status_db
 
 echo -e "\033[32m ==> START SUCCESSFUL ... \033[0m"
-su omm -c "netstat -tunlp"
+netstat -tunlp
 tail -f /dev/null &
 # wait TERM signal
 waitterm

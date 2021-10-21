@@ -5,8 +5,9 @@ WORKDIR /opt
 COPY ./openeuler_python/python/ /tmp/
 
 RUN yum -y update && yum -y install shadow-utils tar libaio-devel flex bison \
-    ncurses-devel glibc-devel patch libnsl readline-devel telnet \
-    make gcc zlib zlib-static zlib-devel python3-psycopg2 python3-devel libffi-devel && \
+    ncurses-devel glibc-devel patch libnsl readline-devel telnet gdbm-devel libpcap-devel xz-devel libffi-devel\
+    zlib-devel bzip2-devel openssl-devel ncurses-devel sqlite-devel readline-devel tk-devel\
+    make gcc zlib zlib-static zlib-devel python3-psycopg2 python3-devel && \
     yum clean all   
 
 # 编译安装 openssl
