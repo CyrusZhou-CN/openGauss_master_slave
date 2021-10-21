@@ -1,5 +1,7 @@
 # openGauss master slave 
 openGauss_2.1.0 极简版 基于openeuler/openeuler:20.03</br>
+## 博客地址
+https://blog.csdn.net/lsqtzj/article/details/120850420
 ## 使用方式
 下载源码</br>
 git clone https://github.com/lsqtzj/openGauss_master_slave.git</br>
