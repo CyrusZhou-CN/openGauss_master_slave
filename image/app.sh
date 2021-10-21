@@ -81,7 +81,7 @@ function checkStart() {
 function init_db() {
     if [[ ! -f "$GAUSSHOME/data/isconfig" ]]; then
         echo "[step 1]: init data node"    
-        su omm -c "gs_initdb -D $GAUSSHOME/data --nodename=$NODE_NAME -E UTF-8 --locale=en_US.UTF-8 -U omm  -w $GAUSS_PASSWORD"
+        gs_initdb -D $GAUSSHOME/data --nodename=$NODE_NAME -E UTF-8 --locale=en_US.UTF-8 -U omm  -w $GAUSS_PASSWORD
         echo "[step 2]: config datanode."    
         local -a ip_arr
         local -i index=0
@@ -121,11 +121,11 @@ function init_db() {
             echo "host    all             omm             $subnet/24          trust"| tee -a $GAUSSHOME/data/pg_hba.conf
         done
         echo "[step 3]: start single_node." 
-        su omm -c "gs_ctl start -D $GAUSSHOME/data  -Z single_node -l logfile"
+        gs_ctl start -D $GAUSSHOME/data  -Z single_node -l logfile
         echo "[step 4]: CREATE USER $GAUSS_USER." 
-        su omm -c "gsql -d postgres -c \"CREATE USER $GAUSS_USER WITH SYSADMIN CREATEDB USEFT CREATEROLE INHERIT LOGIN REPLICATION IDENTIFIED BY '$GAUSS_PASSWORD';\""
+        gsql -d postgres -c "CREATE USER $GAUSS_USER WITH SYSADMIN CREATEDB USEFT CREATEROLE INHERIT LOGIN REPLICATION IDENTIFIED BY '$GAUSS_PASSWORD';"
         echo "[step 5]: stop single_node." 
-        su omm -c "gs_ctl stop -D $GAUSSHOME/data"
+        gs_ctl stop -D $GAUSSHOME/data
         echo "ok" > $GAUSSHOME/data/isconfig
     fi
 }
@@ -133,47 +133,82 @@ function start_db(){
     echo $RUN_MODE 
     if [ $RUN_MODE == "master" ]; then
         echo "[start primary data node.]"
-        su omm -c "gs_ctl start -D $GAUSSHOME/data -M primary"
+        gs_ctl start -D $GAUSSHOME/data -M primary
         local -i count=0
         for server in $REMOTEHOST; do
             checkStart "check $server" "echo start | telnet $server 5432 | grep -c Connected" 1200
             let count=$count+1    
         done
-        checkStart "check master" "echo start | su omm -c \"gs_ctl query -D $GAUSSHOME/data\" | grep -c sync_percent | grep -c $count" 1200
+        checkStart "check master" "echo start | gs_ctl query -D $GAUSSHOME/data | grep -c sync_percent | grep -c $count" 1200
     else
         echo "[build and start slave data node.]"
         checkStart "check master" "echo start | telnet master 5432 | grep -c Connected" 1200        
-        su omm -c "gs_ctl build -D $GAUSSHOME/data -b full"
-        checkStart "check slave" "echo start | su omm -c \"gs_ctl query -D $GAUSSHOME/data\" | grep -c sync_percent" 1200
+        gs_ctl build -D $GAUSSHOME/data -b full
+        checkStart "check slave" "echo start | gs_ctl query -D $GAUSSHOME/data | grep -c sync_percent" 1200
     fi
 }
 
 function stop_db(){
     if [ $RUN_MODE == "master"  ]; then
         echo "[start primary data node.]"
-        su omm -c "gs_ctl stop -D $GAUSSHOME/data -M primary"
+        gs_ctl stop -D $GAUSSHOME/data -M primary
     else
         echo "[build and start slave data node.]"
-        su omm -c "e"
+        gs_ctl stop -D $GAUSSHOME/data -M standby
     fi
     
 }
 
 function status_db(){
-    su omm -c "ps ux | grep gaussdb"
-    su omm -c "gs_ctl query -D $GAUSSHOME/data"
+    ps ux | grep gaussdb
+    gs_ctl query -D $GAUSSHOME/data
 }
 
+function set_environment() {
+    local path_env='export PATH=$GAUSSHOME/bin:$PATH'
+    local ld_env='export LD_LIBRARY_PATH=$GAUSSHOME/lib:$LD_LIBRARY_PATH'
+    local insert_line=2
+    sed -i "/^\\s*export\\s*GAUSSHOME=/d" ~/.bashrc
+    # set PATH and LD_LIBRARY_PATH
+    if [ X"$(grep 'export PATH=$GAUSSHOME/bin:$PATH' ~/.bashrc)" == X"" ]
+    then
+        echo $path_env >> ~/.bashrc
+    fi
+    if [ X"$(grep 'export LD_LIBRARY_PATH=$GAUSSHOME/lib:$LD_LIBRARY_PATH' ~/.bashrc)" == X"" ]
+    then
+        echo $ld_env >> ~/.bashrc
+    fi
+    if [ X"$(grep 'export GS_CLUSTER_NAME=dbCluster' ~/.bashrc)" == X"" ]
+    then
+        echo 'export GS_CLUSTER_NAME=dbCluster' >> ~/.bashrc
+    fi
+    if [ X"$(grep 'ulimit -n 1000000' ~/.bashrc)" == X"" ]
+    then
+        echo 'ulimit -n 1000000' >> ~/.bashrc
+    fi
+    # set GAUSSHOME
+    path_env_line=$(cat ~/.bashrc | grep -n 'export PATH=$GAUSSHOME/bin:$PATH' | awk -F ':' '{print $1}')
+    ld_env_line=$(grep -n 'export LD_LIBRARY_PATH=$GAUSSHOME/lib:$LD_LIBRARY_PATH' ~/.bashrc | awk -F ':' '{print $1}')
+    echo
+    if [ $path_env_line -gt $ld_env_line ]
+    then
+        let insert_line=$ld_env_line
+    else
+        let insert_line=$path_env_line
+    fi
+    sed -i "$insert_line i\export GAUSSHOME=/opt/software/openGauss" ~/.bashrc
+    source ~/.bashrc
+}
 
 echo "==> START ..."
 
-su omm -c "$GAUSSHOME/set_environment.sh"
+set_environment
 init_db
 start_db
 status_db
 
 echo -e "\033[32m ==> START SUCCESSFUL ... \033[0m"
-su omm -c "netstat -tunlp"
+netstat -tunlp
 tail -f /dev/null &
 # wait TERM signal
 waitterm
