@@ -1,6 +1,6 @@
 FROM lsqtzj/openeuler_python:20.03
 
-EXPOSE 5432 8008
+EXPOSE 8080 5432 8008
 
 WORKDIR /opt/software
 COPY ./image /tmp/
