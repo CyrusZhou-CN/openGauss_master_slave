@@ -46,9 +46,9 @@ function checkStart() {
     i=0
     str=""
     bgcolor=43
-    space48="                       "
-    echo "check $name"
-    echo "CMD:$cmd"
+    space48="                       "    
+    echo "check $name ..."
+    echo "CMD: $cmd"
     isrun=0
     while [ $timeout -gt 0 ]
     do
@@ -80,8 +80,8 @@ function checkStart() {
 }
 
 function init_db() {
-    get_HOST_NAMES_IP
-    if [[ ! -f "$GAUSSHOME/data/isconfig" ]]; then        
+    if [[ ! -f "$GAUSSHOME/data/isconfig" ]]; then
+        get_HOST_NAMES_IP
         rm -rf $GAUSSHOME/data
         echo "[step 1]: init data node"
         gs_initdb -D $GAUSSHOME/data --nodename=$NODE_NAME -E UTF-8 --locale=en_US.UTF-8 -U omm  -w $GAUSS_PASSWORD
