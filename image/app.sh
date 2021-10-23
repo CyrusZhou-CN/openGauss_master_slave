@@ -80,8 +80,8 @@ function checkStart() {
 }
 
 function init_db() {
-    if [[ ! -f "$GAUSSHOME/data/isconfig" ]]; then
-        get_HOST_NAMES_IP
+    get_HOST_NAMES_IP
+    if [[ ! -f "$GAUSSHOME/data/isconfig" ]]; then        
         rm -rf $GAUSSHOME/data
         echo "[step 1]: init data node"
         gs_initdb -D $GAUSSHOME/data --nodename=$NODE_NAME -E UTF-8 --locale=en_US.UTF-8 -U omm  -w $GAUSS_PASSWORD
@@ -140,11 +140,7 @@ function init_db() {
         echo "[step 5]: stop single_node." 
         gs_ctl stop -D $GAUSSHOME/data
         echo "[step 6]:first Start OpenGauss"
-        first_Start_OpenGauss
-        echo "[step 7]:change etcd config"
-        set_etcd_config
-        echo "[step 8]:change patroni config"
-        set_patroni_config
+        first_Start_OpenGauss        
         echo -e "\033[32m **********************Open Gauss initialization completed*************************\033[0m"        
         echo $(date) "- init ok" > $GAUSSHOME/data/isconfig
     fi
@@ -194,13 +190,13 @@ get_ETCD_INITIAL_CLUSTER () {
 
 set_etcd_config() {
     get_ETCD_INITIAL_CLUSTER
-    sed -i "/^data-dir:/c\data-dir: $SOFT_HOME/default.etcd" $SOFT_HOME/etcd.conf && \
-    sed -i "/^name:/c\name: ${HOSTNAME}" $SOFT_HOME/etcd.conf && \
-    sed -i "/^listen-peer-urls:/c\listen-peer-urls: http:\/\/${HOST_IP}:2380" $SOFT_HOME/etcd.conf && \
-    sed -i "/^initial-advertise-peer-urls:/c\initial-advertise-peer-urls: http:\/\/${HOST_IP}:2380" $SOFT_HOME/etcd.conf && \
-    sed -i "/^advertise-client-urls:/c\advertise-client-urls: http:\/\/${HOST_IP}:2379" $SOFT_HOME/etcd.conf && \
-    sed -i "/^listen-client-urls:/c\listen-client-urls: http:\/\/${HOST_IP}:2379" $SOFT_HOME/etcd.conf && \
-    sed -i "/^initial-cluster:/c\initial-cluster: ${ETCD_INITIAL_CLUSTER}" $SOFT_HOME/etcd.conf && \
+    sed -i "/^data-dir:/c\data-dir: $SOFT_HOME/default.etcd" $SOFT_HOME/etcd.conf
+    sed -i "/^name:/c\name: ${HOSTNAME}" $SOFT_HOME/etcd.conf 
+    sed -i "/^listen-peer-urls:/c\listen-peer-urls: http:\/\/${HOST_IP}:2380" $SOFT_HOME/etcd.conf 
+    sed -i "/^initial-advertise-peer-urls:/c\initial-advertise-peer-urls: http:\/\/${HOST_IP}:2380" $SOFT_HOME/etcd.conf 
+    sed -i "/^advertise-client-urls:/c\advertise-client-urls: http:\/\/${HOST_IP}:2379" $SOFT_HOME/etcd.conf
+    sed -i "/^listen-client-urls:/c\listen-client-urls: http:\/\/${HOST_IP}:2379" $SOFT_HOME/etcd.conf
+    sed -i "/^initial-cluster:/c\initial-cluster: ${ETCD_INITIAL_CLUSTER}" $SOFT_HOME/etcd.conf
     sed -i "/^initial-cluster-token:/c\initial-cluster-token: 'cluster1'" $SOFT_HOME/etcd.conf
     
     if [ -n "${INITIAL_CLUSTER_STATE}" ] && [ "${INITIAL_CLUSTER_STATE}" == "existing" ]; then
@@ -217,21 +213,21 @@ get_ETCD_HOSTS () {
 
 set_patroni_config() {
     get_ETCD_HOSTS        
-    sed -i "s/^name: name/name: $HOSTNAME/" $SOFT_HOME/patroni.yaml && \
-    sed -i "s/^  listen: localhost:8008/  listen: $HOST_IP:8008/" $SOFT_HOME/patroni.yaml && \
-    sed -i "s/^  connect_address: localhost:8008/  connect_address: $HOST_IP:8008/" $SOFT_HOME/patroni.yaml && \
-    sed -i "s/^  host: localhost:2379/  hosts: $ETCD_HOSTS/" $SOFT_HOME/patroni.yaml && \
-    sed -i "s/^  listen: localhost:16000/  listen: $HOST_IP:$GAUSS_PORT/" $SOFT_HOME/patroni.yaml && \
-    sed -i "s#^  data_dir: /var/lib/opengauss/data#  data_dir: $GAUSSHOME/data#" $SOFT_HOME/patroni.yaml && \
-    sed -i "s#^  bin_dir: /usr/local/opengauss/bin#  bin_dir: $GAUSSHOME/bin#" $SOFT_HOME/patroni.yaml && \
-    sed -i "s#^  config_dir: /var/lib/opengauss/data#  config_dir: $GAUSSHOME/data#" $SOFT_HOME/patroni.yaml && \
-    sed -i "s#^  custom_conf: /var/lib/opengauss/data/postgresql.conf#  custom_conf: $GAUSSHOME/data/postgresql.conf#" $SOFT_HOME/patroni.yaml && \
-    sed -i "s/^  connect_address: localhost:16000/  connect_address: $HOST_IP:$GAUSS_PORT/" $SOFT_HOME/patroni.yaml && \
-    sed -i "s/^      username: superuser/      username: $GAUSS_USER/" $SOFT_HOME/patroni.yaml && \
-    sed -i "s/^      password: superuser_123/      password: $GAUSS_PASSWORD/" $SOFT_HOME/patroni.yaml && \
-    sed -i "s/^      username: repl/      username: $GAUSS_USER/" $SOFT_HOME/patroni.yaml && \
-    sed -i "s/^      password: repl_123/      password: $GAUSS_PASSWORD/" $SOFT_HOME/patroni.yaml && \
-    sed -i "s/^      username: rewind/      username: $GAUSS_USER/" $SOFT_HOME/patroni.yaml && \
+    sed -i "s/^name: name/name: $HOSTNAME/" $SOFT_HOME/patroni.yaml
+    sed -i "s/^  listen: localhost:8008/  listen: $HOST_IP:8008/" $SOFT_HOME/patroni.yaml
+    sed -i "s/^  connect_address: localhost:8008/  connect_address: $HOST_IP:8008/" $SOFT_HOME/patroni.yaml
+    sed -i "s/^  host: localhost:2379/  hosts: $ETCD_HOSTS/" $SOFT_HOME/patroni.yaml
+    sed -i "s/^  listen: localhost:16000/  listen: $HOST_IP:$GAUSS_PORT/" $SOFT_HOME/patroni.yaml
+    sed -i "s#^  data_dir: /var/lib/opengauss/data#  data_dir: $GAUSSHOME/data#" $SOFT_HOME/patroni.yaml
+    sed -i "s#^  bin_dir: /usr/local/opengauss/bin#  bin_dir: $GAUSSHOME/bin#" $SOFT_HOME/patroni.yaml
+    sed -i "s#^  config_dir: /var/lib/opengauss/data#  config_dir: $GAUSSHOME/data#" $SOFT_HOME/patroni.yaml
+    sed -i "s#^  custom_conf: /var/lib/opengauss/data/postgresql.conf#  custom_conf: $GAUSSHOME/data/postgresql.conf#" $SOFT_HOME/patroni.yaml
+    sed -i "s/^  connect_address: localhost:16000/  connect_address: $HOST_IP:$GAUSS_PORT/" $SOFT_HOME/patroni.yaml
+    sed -i "s/^      username: superuser/      username: $GAUSS_USER/" $SOFT_HOME/patroni.yaml
+    sed -i "s/^      password: superuser_123/      password: $GAUSS_PASSWORD/" $SOFT_HOME/patroni.yaml
+    sed -i "s/^      username: repl/      username: $GAUSS_USER/" $SOFT_HOME/patroni.yaml
+    sed -i "s/^      password: repl_123/      password: $GAUSS_PASSWORD/" $SOFT_HOME/patroni.yaml
+    sed -i "s/^      username: rewind/      username: $GAUSS_USER/" $SOFT_HOME/patroni.yaml
     sed -i "s/^      password: rewind_123/      password: $GAUSS_PASSWORD/" $SOFT_HOME/patroni.yaml
 }
 
@@ -316,14 +312,16 @@ first_Start_OpenGauss() {
 }
 
 function start_db(){
+    echo "change etcd config"
+    set_etcd_config
+    echo "change patroni config"
+    set_patroni_config
     echo -e "\033[32m ==> Start $(etcd --version | grep etcd) Server... \033[0m"
     etcd --config-file $SOFT_HOME/etcd.conf > $SOFT_HOME/etcd.log 2>&1 &
     echo -e "\033[32m ==> Start $(patroni --version) Server... \033[0m"
-    # 实时输出日志
-    #exec patroni  $SOFT_HOME/patroni.yaml  2>&1 | tee $SOFT_HOME/patroni.log 
-    # 日志后台记录
-    patroni $SOFT_HOME/patroni.yaml > $SOFT_HOME/patroni.log 2>&1 &    
-    echo -e "\033[32m ==>$(gaussdb -V)<== \033[0m"
+    # 日志输出到LOGS屏幕，会阻断后面的代码
+    exec patroni $SOFT_HOME/patroni.yaml  2>&1 | tee $SOFT_HOME/patroni.log
+    echo -e "\033[32m ==> $(gaussdb -V)<== \033[0m"
 }
 
 function stop_db(){
@@ -338,7 +336,7 @@ function stop_db(){
 }
 
 function status_db(){
-    #gs_ctl query -D $GAUSSHOME/data
+    gs_ctl query -D $GAUSSHOME/data
     checkStart "Wait for all hosts to run OpenGauss" "echo start | patronictl -c $SOFT_HOME/patroni.yaml list | grep -c running | grep -c $(($PEER_NUM + 1))" 1200
     echo -e "\033[32m **********************Patroni List*************************\033[0m"
     patronictl -c $SOFT_HOME/patroni.yaml list
