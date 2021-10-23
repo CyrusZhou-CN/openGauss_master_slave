@@ -1,0 +1,19 @@
+[Unit]
+Description=Runners to orchestrate a high-availability PostgreSQL
+After=syslog.target network.target
+
+
+[Service]
+Type=simple
+User=omm
+Group=dbgrp
+#StandardOutput=syslog
+ExecStart=/home/omm/venv/bin/patroni /opt/software/patroni.yaml  2>&1 | tee /opt/software/patroni.log
+ExecReload=/bin/kill -s HUP $MAINPID
+KillMode=process
+TimeoutSec=30
+Restart=no
+
+
+[Install]
+WantedBy=multi-user.target

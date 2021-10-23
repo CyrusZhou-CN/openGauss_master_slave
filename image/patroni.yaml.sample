@@ -1,0 +1,66 @@
+scope: opengauss 
+namespace: /service
+name: name
+
+restapi:
+  listen: localhost:8008
+  connect_address: localhost:8008
+
+etcd:
+  host: localhost:2379
+
+bootstrap:
+  dcs:
+    ttl: 30
+    loop_wait: 10
+    retry_timeout: 10
+    maximum_lag_on_failover: 1048576
+    master_start_timeout: 300
+    synchronous_mode: false
+    postgresql:
+      use_pg_rewind: true
+      use_slots: true
+      parameters:
+        wal_level: hotstandby
+        hot_standby: "on"
+        wal_keep_segments: 16
+        max_wal_sender: 10
+        max_replication_slots: 10
+        wal_log_hints: "on"
+
+
+
+  initdb:
+    - encoding: UTF8
+    - data-checksums
+
+
+
+
+postgresql:
+  listen: localhost:16000
+  connect_address: localhost:16000
+  data_dir: /var/lib/opengauss/data
+  bin_dir: /usr/local/opengauss/bin
+  config_dir: /var/lib/opengauss/data
+  custom_conf: /var/lib/opengauss/data/postgresql.conf
+
+  authentication:
+    replication:
+      username: repl
+      password: repl_123
+    superuser:
+      username: superuser
+      password: superuser_123
+    rewind:
+      username: rewind
+      password: rewind_123
+
+
+
+
+tags:
+    nofailover: false
+    noloadbalance: false
+    clonefrom: false
+    nosync: false
