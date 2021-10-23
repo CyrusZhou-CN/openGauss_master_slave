@@ -1,7 +1,7 @@
 version: "3"
 services:  
   master:
-    image: lsqtzj/openeuler_open_gauss
+    image: lsqtzj/openeuler_open_gauss:v2.1.0_master_slave
     restart: always
     container_name: master
     hostname: master
@@ -14,10 +14,10 @@ services:
     environment:
       TZ: Europe/Rome #Asia/Shanghai 时区
       NODE_NAME: datanode1
-      RUN_MODE: "master" #默认主机
+      RUN_MODE: "master"  #主机模式 "master" /"slave"
       GAUSS_USER: gauss   #远程管理员
       GAUSS_PASSWORD: Gauss666 #密码
-      REMOTEHOST: 10.8.0.11 10.8.0.12
+      REMOTEHOST: 10.8.0.11 10.8.0.12 # 备用主机
     extra_hosts:
       - "master:10.8.0.10"
       - "slave01:10.8.0.11"
@@ -25,7 +25,7 @@ services:
       - "pgadmin4:10.8.0.18"
 
   slave01:
-    image:  lsqtzj/openeuler_open_gauss
+    image:  lsqtzj/openeuler_open_gauss:v2.1.0_master_slave
     restart: always
     container_name: slave01
     hostname: slave01
@@ -48,7 +48,7 @@ services:
       - master
 
   slave02:
-    image:  lsqtzj/openeuler_open_gauss
+    image:  lsqtzj/openeuler_open_gauss:v2.1.0_master_slave
     restart: always
     container_name: slave02
     hostname: slave02
