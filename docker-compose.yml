@@ -11,13 +11,14 @@ services:
     ports:
       - 15432:5432
       - 8980:80
+      - 8008:8008
     environment:
       TZ: Europe/Rome #Asia/Shanghai 时区
       NODE_NAME: datanode1
-      RUN_MODE: "master"  #默认主机
-      GAUSS_USER: gauss   #远程管理员
-      GAUSS_PASSWORD: Gauss666 #密码
-      REMOTEHOST: 10.8.0.11 10.8.0.12
+      RUN_MODE: "master"  # 主机模式 "master"/"slave" | patroni 服务版本只用于首次设置，Leader 机由patroni进行控制
+      GAUSS_USER: gauss   # 远程管理员
+      GAUSS_PASSWORD: Gauss666 # 密码
+      HOST_NAMES: slave01,slave02 # 主机列表
     extra_hosts:
       - "master:10.8.0.10"
       - "slave01:10.8.0.11"
@@ -38,7 +39,7 @@ services:
       GAUSS_PASSWORD: Gauss666
       NODE_NAME: datanode2
       RUN_MODE: "slave"
-      REMOTEHOST: 10.8.0.10 10.8.0.12
+      HOST_NAMES: master,slave02
     extra_hosts:
       - "master:10.8.0.10"
       - "slave01:10.8.0.11"
@@ -61,7 +62,7 @@ services:
       GAUSS_PASSWORD: Gauss666
       NODE_NAME: datanode3
       RUN_MODE: "slave"
-      REMOTEHOST: 10.8.0.10 10.8.0.11
+      HOST_NAMES: master,slave01
     extra_hosts:
       - "master:10.8.0.10"
       - "slave01:10.8.0.11"
