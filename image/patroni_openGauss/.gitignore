@@ -1,0 +1,59 @@
+*.py[cod]
+
+# vi(m) swap files:
+*.sw?
+
+# C extensions
+*.so
+
+# Packages
+.cache/
+*.egg
+*.eggs
+*.egg-info
+dist
+build
+eggs
+parts
+bin
+var
+sdist
+develop-eggs
+.installed.cfg
+lib
+lib64
+
+# Installer logs
+pip-log.txt
+
+# Unit test / coverage reports
+.coverage
+.tox
+nosetests.xml
+coverage.xml
+htmlcov
+junit.xml
+features/output
+dummy
+
+# Translations
+*.mo
+
+# Mr Developer
+.mr.developer.cfg
+.project
+.pydevproject
+
+pgpass
+scm-source.json
+
+# Sphinx-generated documentation
+docs/build/
+docs/source/_static/
+docs/source/_templates/
+
+# Pycharm IDE
+.idea/
+
+#VSCode IDE
+.vscode/
