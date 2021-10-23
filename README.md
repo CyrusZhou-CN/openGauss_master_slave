@@ -18,3 +18,5 @@ docker-compose -f "docker-compose.yml" up -d</br>
 http://localhost:9980/pgadmin4/browser/</br>
 默认管理员 / 密码：admin@domain.com / admin</br>
 ![image](https://user-images.githubusercontent.com/4635861/137875941-3ad483a5-e8c8-401b-be26-fea4d90670db.png)
+# 添加 patroni 自动主备切换
+测试中......
