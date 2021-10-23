@@ -47,7 +47,8 @@ function checkStart() {
     str=""
     bgcolor=43
     space48="                       "    
-    echo "$name check ... [$cmd]"
+    echo "check $name"
+    echo "CMD: $cmd"
     isrun=0
     while [ $timeout -gt 0 ]
     do
@@ -131,9 +132,26 @@ function init_db() {
 }
 function start_db(){
     echo $RUN_MODE 
+    while :
+    do
+        if [ $RUN_MODE == "master" ]; then
+            echo -e "\033[32m ==> Start OpenGauss primary  <== \033[0m"
+            gs_ctl restart -D "$GAUSSHOME/data" -M primary
+        else 
+            checkStart "check master" "echo start | telnet master 5432 | grep -c Connected" 1200
+            echo -e "\033[32m ==> Start OpenGauss standby  <== \033[0m"
+            gs_ctl restart -D "$GAUSSHOME/data" -M standby
+            gs_ctl build -D "$GAUSSHOME/data" -b full
+        fi
+        if [ $? -eq 0 ]; then
+            break
+        else
+            echo -e "\033[31m ==> errcode=$?\033[0m"
+            echo -e "\033[31m ==>build failed\033[0m"
+            sleep 1s
+        fi
+    done
     if [ $RUN_MODE == "master" ]; then
-        echo "[start primary data node.]"
-        gs_ctl start -D $GAUSSHOME/data -M primary
         local -i count=0
         for server in $REMOTEHOST; do
             checkStart "check $server" "echo start | telnet $server 5432 | grep -c Connected" 1200
@@ -141,9 +159,6 @@ function start_db(){
         done
         checkStart "check master" "echo start | gs_ctl query -D $GAUSSHOME/data | grep -c sync_percent | grep -c $count" 1200
     else
-        echo "[build and start slave data node.]"
-        checkStart "check master" "echo start | telnet master 5432 | grep -c Connected" 1200        
-        gs_ctl build -D $GAUSSHOME/data -b full
         checkStart "check slave" "echo start | gs_ctl query -D $GAUSSHOME/data | grep -c sync_percent" 1200
     fi
 }
