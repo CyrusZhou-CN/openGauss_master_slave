@@ -13,7 +13,7 @@ RUN yum -y update && yum -y install shadow-utils tar libaio-devel flex bison \
 # 编译安装 openssl
 RUN tar -zxvf /tmp/openssl-*.tar.gz -C /opt/ && rm -rf /tmp/openssl-*.tar.gz && \
     cd /opt/openssl-* && \
-    ./config --prefix=/usr/local/openssl && \
+    ./config --prefix=/usr/local/openssl shared enable-ssl3 enable-ssl3-method && \
     make -j4 && make install && \
     ln -sf /usr/local/openssl/bin/openssl /usr/bin/openssl && \
     ln -sf /usr/local/openssl/include/openssl /usr/include/openssl && \
