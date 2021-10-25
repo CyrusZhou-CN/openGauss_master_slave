@@ -35,7 +35,9 @@ RUN tar -xzvf /tmp/etcd-*-linux-amd64.tar.gz -C /tmp/ && \
     cd /tmp/etcd-*-linux-amd64 && cp ./etcd* /usr/bin && \
     rm -rf /tmp/etcd-*-linux-amd64
 
-RUN chown omm:dbgrp -R /opt/software  && \
+RUN chown omm:dbgrp -R /opt/software && \
+    echo "omm" | sudo passwd omm --stdin  &>/dev/null && \
+    echo "root" | sudo passwd root --stdin  &>/dev/null && \
     chown omm:dbgrp -R /tmp/*  && \
     chmod -R 700 /tmp/*  && \
     chmod -R 700 /opt/software  && \
@@ -73,12 +75,12 @@ ENV LD_LIBRARY_PATH=$GAUSSHOME/lib:$LD_LIBRARY_PATH
 ENV GS_CLUSTER_NAME=dbCluster
 ENV ulimit -n 1000000
 
-RUN python3 -m venv /home/omm/venv && \
+RUN /usr/local/python3.7/bin/python3.7 -m venv /home/omm/venv && \
     source /home/omm/venv/bin/activate && \
-    pip install wheel && \
     /home/omm/venv/bin/python3 -m pip install --upgrade pip && \   
     cd /opt/software/psycopg2 && \
-    python setup.py build && python setup.py install && \
+    python setup.py build && python setup.py install && \    
+    pip install wheel && \
     cd /opt/software/patroni_openGauss && \
     pip install -r requirements.txt && \
     python setup.py build && python setup.py install && \

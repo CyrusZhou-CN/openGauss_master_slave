@@ -12,6 +12,9 @@ docker-compose -f "docker-compose-build.yml" up -d --build</br>
 docker-compose -f "docker-compose.yml" up -d</br>
 ![image](https://user-images.githubusercontent.com/4635861/137876048-c1fd20b2-257c-40ef-8974-6b04653bf90d.png)</br>
 ![image](https://user-images.githubusercontent.com/4635861/137875839-794355b6-81ea-4d57-96a3-ab4600dd11e1.png)
+### 系统默认密码
+用户名/密码 root / root
+           omm / omm
 ## openGauss 默认远程连接配置
 管理员 / 密码：gauss / Gauss666</br>
 ## 集成pgAdmin4 6.0
