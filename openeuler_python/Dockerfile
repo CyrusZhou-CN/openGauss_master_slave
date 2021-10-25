@@ -7,13 +7,15 @@ COPY ./openeuler_python/python/ /tmp/
 RUN yum -y update && yum -y install shadow-utils tar libaio-devel flex bison \
     ncurses-devel glibc-devel patch libnsl readline-devel telnet gdbm-devel libpcap-devel xz-devel libffi-devel\
     zlib-devel bzip2-devel openssl-devel ncurses-devel sqlite-devel readline-devel tk-devel\
-    make gcc zlib zlib-static zlib-devel python3-psycopg2 python3-devel && \
-    yum clean all   
-
+    make gcc zlib zlib-static zlib-devel python3-psycopg2 python3-devel 
+# bash: passwd: command not found
+# bash: service: command not found
+RUN yum install -y passwd initscripts sudo && \
+    yum clean all
 # 编译安装 openssl
 RUN tar -zxvf /tmp/openssl-*.tar.gz -C /opt/ && rm -rf /tmp/openssl-*.tar.gz && \
     cd /opt/openssl-* && \
-    ./config --prefix=/usr/local/openssl && \
+    ./config --prefix=/usr/local/openssl shared enable-ssl3 enable-ssl3-method && \
     make -j4 && make install && \
     ln -sf /usr/local/openssl/bin/openssl /usr/bin/openssl && \
     ln -sf /usr/local/openssl/include/openssl /usr/include/openssl && \
