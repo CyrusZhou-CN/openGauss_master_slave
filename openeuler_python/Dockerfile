@@ -21,6 +21,10 @@ RUN tar -zxvf /tmp/openssl-*.tar.gz -C /opt/ && rm -rf /tmp/openssl-*.tar.gz && 
     ln -sf /usr/local/openssl/include/openssl /usr/include/openssl && \
     ln -sf /usr/local/openssl/lib/libssl.so /usr/lib64/libssl.so && \
     echo "/usr/local/openssl/lib" >> /etc/ld.so.conf && \
+    chmod -R 777 /usr/local/openssl && \
+    chmod -R 777 /usr/bin/openssl && \
+    chmod -R 777 /usr/include/openssl && \
+    chmod -R 777 /usr/lib64/libssl.so && \
     ldconfig -v
 
 # 编译安装 Python
@@ -47,8 +51,14 @@ RUN cp -rf /usr/lib/python3.7/site-packages/dnf-plugins /usr/local/python3.7/lib
     cp -rf /usr/lib64/python3.7/site-packages/libcomps /usr/local/python3.7/lib/python3.7/site-packages/libcomps && \
     cp -rf /usr/lib64/python3.7/site-packages/gpg /usr/local/python3.7/lib/python3.7/site-packages/gpg && \
     cp -rf /usr/lib64/python3.7/site-packages/gpg-1.14.0-py3.7.egg-info  /usr/local/python3.7/lib/python3.7/site-packages/gpg-1.14.0-py3.7.egg-info && \
-    cp -rf /usr/lib64/python3.7/site-packages/hawkey /usr/local/python3.7/lib/python3.7/site-packages/hawkey
+    cp -rf /usr/lib64/python3.7/site-packages/hawkey /usr/local/python3.7/lib/python3.7/site-packages/hawkey &&\
+    chmod -R 777 /usr/local/python3.7 &&\
+    chmod -R 777 /usr/lib/python3.7  &&\
+    chmod -R 777 /usr/lib64/python3.7
 # 清除安装包
 RUN rm -rf /tmp/* /opt/*
+RUN rm -rf /usr/lib64/libssl* && \
+    cp /usr/local/openssl/lib/libssl* /usr/lib64 && \
+    chmod -R 777 /usr/lib64/libssl*
 
 CMD ["/bin/bash"]
