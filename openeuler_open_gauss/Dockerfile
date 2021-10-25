@@ -13,7 +13,6 @@ RUN groupadd -r dbgrp && useradd -g dbgrp omm && \
     mv /tmp/etcd.conf.sample /opt/software/etcd.conf && \
     mv /tmp/patroni.yaml.sample /opt/software/patroni.yaml
 
-
 # 解决patroni找不到gs_isready问题
 RUN mv /tmp/gs_isready /opt/software/openGauss/bin/gs_isready && \
     mv /tmp/libreadline.so.6.2 /usr/lib64/libreadline.so.6.2 && \
