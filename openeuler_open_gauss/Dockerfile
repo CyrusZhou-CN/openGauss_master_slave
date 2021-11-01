@@ -11,7 +11,9 @@ RUN groupadd -r dbgrp && useradd -g dbgrp -G root omm && \
     rm -f /tmp/openGauss-*-openEuler-64bit.tar.bz2 && \
     mv /tmp/app.sh /opt/software/app.sh && \
     mv /tmp/etcd.conf.sample /opt/software/etcd.conf && \
-    mv /tmp/patroni.yaml.sample /opt/software/patroni.yaml
+    mv /tmp/patroni.yaml.sample /opt/software/patroni.yaml && \
+    mv /tmp/patroni.service /etc/systemd/system/patroni.service && \
+    mv /tmp/etcd.service /etc/systemd/system/etcd.service
 
 # 解决patroni找不到gs_isready问题
 RUN mv /tmp/gs_isready /opt/software/openGauss/bin/gs_isready && \
@@ -21,9 +23,6 @@ RUN mv /tmp/gs_isready /opt/software/openGauss/bin/gs_isready && \
 
 RUN mv /tmp/patroni_openGauss /opt/software/patroni_openGauss
 
-RUN tar -zxvf /tmp/haproxy-*.tar.gz -C /opt/software/ && \
-    rm -f /tmp/haproxy-*.tar.gz && \
-    mv /opt/software/haproxy-* /opt/software/haproxy
 RUN tar -zxvf /tmp/psycopg2-*.tar.gz -C /opt/software/ && \
     rm -f /tmp/psycopg2-*.tar.gz && \
     mv /opt/software/psycopg2-* /opt/software/psycopg2
@@ -73,7 +72,7 @@ USER omm
 
 ENV SOFT_HOME=/opt/software
 ENV GAUSSHOME=$SOFT_HOME/openGauss
-ENV PATH=$GAUSSHOME/bin:$PATH:/usr/local/python3.7/bin
+ENV PATH=$GAUSSHOME/bin:$PATH:/usr/local/python3.7/bin:/home/omm/venv/bin
 ENV LD_LIBRARY_PATH=/usr/local/lib64:/usr/local/lib:/usr/lib
 ENV LD_LIBRARY_PATH=$GAUSSHOME/lib:$LD_LIBRARY_PATH
 ENV GS_CLUSTER_NAME=dbCluster

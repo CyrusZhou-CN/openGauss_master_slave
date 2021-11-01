@@ -10,7 +10,7 @@ User=omm
 Group=dbgrp
 #Environment=ETCD_DATA_DIR=/var/lib/etcd
 #Environment=ETCD_NAME=%m
-ExecStart=/usr/bin/etcd --config-file $SOFT_HOME/etcd.conf > $SOFT_HOME/etcd.log 2>&1 &
+ExecStart=/usr/bin/etcd --config-file $SOFT_HOME/etcd.conf
 Restart=always
 RestartSec=10s
 LimitNOFILE=40000

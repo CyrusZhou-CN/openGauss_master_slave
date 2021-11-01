@@ -21,4 +21,11 @@ http://localhost:9980/pgadmin4/browser/</br>
 默认管理员 / 密码：admin@domain.com / admin</br>
 ![image](https://user-images.githubusercontent.com/4635861/137875941-3ad483a5-e8c8-401b-be26-fea4d90670db.png)
 # 添加 patroni 自动主备切换
-测试中......
+etcd Version: 3.5.1</br>
+patroni Version 2.0.2
+# 加入 HAProxy 数据库读写负载均衡
+http://localhost:7000/ 监控
+## 数据库配置
+haproxy:5000   读写</br>
+haproxy:5001   读</br>
+![image](https://user-images.githubusercontent.com/4635861/139657547-abb4cf92-2c86-4920-9fd8-4a029a5534fd.png) 
