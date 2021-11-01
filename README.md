@@ -28,4 +28,4 @@ http://localhost:7000/ 监控
 ## 数据库配置
 haproxy:5000   读写</br>
 haproxy:5001   读</br>
-![image](https://user-images.githubusercontent.com/4635861/139657547-abb4cf92-2c86-4920-9fd8-4a029a5534fd.png)
+![image](https://user-images.githubusercontent.com/4635861/139657547-abb4cf92-2c86-4920-9fd8-4a029a5534fd.png) 
