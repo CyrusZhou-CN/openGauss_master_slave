@@ -24,6 +24,7 @@ services:
       - "slave01:10.8.0.11"
       - "slave02:10.8.0.12"
       - "pgadmin4:10.8.0.18"
+      - "haproxy:10.8.0.19"
 
   slave01:
     image:  lsqtzj/openeuler_open_gauss
@@ -45,6 +46,7 @@ services:
       - "slave01:10.8.0.11"
       - "slave02:10.8.0.12"
       - "pgadmin4:10.8.0.18"
+      - "haproxy:10.8.0.19"
     depends_on:
       - master
 
@@ -68,9 +70,38 @@ services:
       - "slave01:10.8.0.11"
       - "slave02:10.8.0.12"
       - "pgadmin4:10.8.0.18"
+      - "haproxy:10.8.0.19"
     depends_on:
       - master
   
+  haproxy:
+    image: lsqtzj/openeuler_haproxy
+    build:
+      context: .
+      dockerfile: openeuler_haproxy/Dockerfile
+    restart: always
+    container_name: haproxy
+    hostname: haproxy
+    networks:
+      gauss:
+        ipv4_address: 10.8.0.19
+    ports:
+      - 7000:7000
+    environment:
+      TZ: Europe/Rome #Asia/Shanghai 时区
+      PGADMIN_DEFAULT_EMAIL: admin@domain.com # pgadmin4管理员
+      PGADMIN_DEFAULT_PASSWORD: admin         # pgadmin4管理员密码
+      ips: "10.8.0.10,10.8.0.11,10.8.0.12"
+      ports: "5432,5432,5432,5432"
+    extra_hosts:
+      - "master:10.8.0.10"
+      - "slave01:10.8.0.11"
+      - "slave02:10.8.0.12"
+      - "pgadmin4:10.8.0.18"
+      - "haproxy:10.8.0.19"
+    depends_on:
+      - master
+
   pgadmin4:
     image:  lsqtzj/openeuler_pgadmin4
     restart: always
@@ -90,6 +121,7 @@ services:
       - "slave01:10.8.0.11"
       - "slave02:10.8.0.12"
       - "pgadmin4:10.8.0.18"
+      - "haproxy:10.8.0.19"
     depends_on:
       - master
 

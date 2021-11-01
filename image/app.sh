@@ -319,24 +319,29 @@ function start_db(){
     echo -e "\033[32m ==> Start $(etcd --version | grep etcd) Server... \033[0m"
     etcd --config-file $SOFT_HOME/etcd.conf > $SOFT_HOME/etcd.log 2>&1 &
     echo -e "\033[32m ==> Start $(patroni --version) Server... \033[0m"
-    # 日志输出到LOGS屏幕，会阻断后面的代码
+    # 会阻断后面的代码，没有找到更好的解决方式
     exec patroni $SOFT_HOME/patroni.yaml  2>&1 | tee $SOFT_HOME/patroni.log
     echo -e "\033[32m ==> $(gaussdb -V)<== \033[0m"
 }
 
 function stop_db(){
-    if [ $RUN_MODE == "master"  ]; then
-        echo "[start primary data node.]"
-        gs_ctl stop -D $GAUSSHOME/data -M primary
-    else
-        echo "[build and start slave data node.]"
-        gs_ctl stop -D $GAUSSHOME/data -M standby
-    fi
-    
+    # if [ $RUN_MODE == "master"  ]; then
+    #     echo "[Stop primary data node.]"
+    #     gs_ctl stop -D $GAUSSHOME/data -M primary
+    # else
+    #     echo "[Stop slave data node.]"
+    #     gs_ctl stop -D $GAUSSHOME/data -M standby
+    # fi
+    echo -e "\033[31m ==> Stop $(etcd --version | grep etcd) Server... \033[0m"
+    kill -9 $(ps -ef|grep etcd|gawk '$0 !~/grep/ {print $2}' |tr -s '\n' ' ')
+    echo -e "\033[31m ==> Stop $(patroni --version) Server... \033[0m"
+    kill -9 $(ps -ef|grep patroni|gawk '$0 !~/grep/ {print $2}' |tr -s '\n' ' ')
+    echo -e "\033[31m ==> Stop $(gaussdb -V)<== \033[0m"
+    gs_ctl stop -D $GAUSSHOME/data
 }
 
 function status_db(){
-    gs_ctl query -D $GAUSSHOME/data
+    #gs_ctl query -D $GAUSSHOME/data
     checkStart "Wait for all hosts to run OpenGauss" "echo start | patronictl -c $SOFT_HOME/patroni.yaml list | grep -c running | grep -c $(($PEER_NUM + 1))" 1200
     echo -e "\033[32m **********************Patroni List*************************\033[0m"
     patronictl -c $SOFT_HOME/patroni.yaml list
