@@ -18,5 +18,5 @@ RUN yum -y install gcc gcc-c++ make glibc glibc-devel pcre pcre-devel diffutils\
         && cp haproxy /usr/sbin/ \
         && chmod 777 /usr/local/run.sh
 
-EXPOSE 7000
+EXPOSE 7000 5000 5001
 CMD ["/usr/local/run.sh"]

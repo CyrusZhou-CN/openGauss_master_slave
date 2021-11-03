@@ -96,6 +96,8 @@ services:
         ipv4_address: 10.8.0.19
     ports:
       - 7000:7000
+      - 5000:5000
+      - 5001:5001
     environment:
       TZ: Europe/Rome #Asia/Shanghai 时区
       PGADMIN_DEFAULT_EMAIL: admin@domain.com # pgadmin4管理员
