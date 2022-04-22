@@ -1,5 +1,5 @@
 # openGauss master slave 
-openGauss_2.1.0 极简版 基于openeuler/openeuler:20.03</br>
+openGauss 极简版 基于openeuler/openeuler:20.03</br>
 ## 博客地址
 https://blog.csdn.net/lsqtzj/article/details/120850420
 ## 使用方式
@@ -12,9 +12,22 @@ docker-compose -f "docker-compose-build.yml" up -d --build</br>
 docker-compose -f "docker-compose.yml" up -d</br>
 ![image](https://user-images.githubusercontent.com/4635861/137876048-c1fd20b2-257c-40ef-8974-6b04653bf90d.png)</br>
 ![image](https://user-images.githubusercontent.com/4635861/137875839-794355b6-81ea-4d57-96a3-ab4600dd11e1.png)
+### 系统默认密码
+用户名/密码 root / root 、omm / omm
 ## openGauss 默认远程连接配置
 管理员 / 密码：gauss / Gauss666</br>
 ## 集成pgAdmin4 6.0
 http://localhost:9980/pgadmin4/browser/</br>
 默认管理员 / 密码：admin@domain.com / admin</br>
 ![image](https://user-images.githubusercontent.com/4635861/137875941-3ad483a5-e8c8-401b-be26-fea4d90670db.png)
+# 添加 patroni 自动主备切换
+etcd Version: 3.5.1</br>
+patroni Version 2.0.2
+# 加入 HAProxy 数据库读写负载均衡
+http://localhost:7000/ 监控
+## 数据库配置
+haproxy:5000   读写</br>
+haproxy:5001   读</br>
+![image](https://user-images.githubusercontent.com/4635861/139657547-abb4cf92-2c86-4920-9fd8-4a029a5534fd.png) 
+## openGauss 更新到 3.0.0 版本
+docker-compose 基本配置 放到 .env 文件中。
