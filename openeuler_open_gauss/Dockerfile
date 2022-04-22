@@ -27,7 +27,7 @@ RUN tar -zxvf /tmp/psycopg2-*.tar.gz -C /opt/software/ && \
     rm -f /tmp/psycopg2-*.tar.gz && \
     mv /opt/software/psycopg2-* /opt/software/psycopg2
 
-ADD ./image/openGauss-2.1.0-openEuler-64bit-Libpq.tar.gz /opt/software/openGauss
+ADD ./image/openGauss-*-openEuler-64bit-Libpq.tar.gz /opt/software/openGauss
 
 RUN tar -xzvf /tmp/etcd-*-linux-amd64.tar.gz -C /tmp/ && \
     rm -rf /tmp/etcd-*-linux-amd64.tar.gz && \

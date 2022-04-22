@@ -1,7 +1,7 @@
 version: "3"
 services:  
   master:
-    image: lsqtzj/openeuler_open_gauss
+    image: lsqtzj/openeuler_open_gauss:${OPEN_GAUSS_VERSION}
     restart: always
     container_name: master
     hostname: master
@@ -16,8 +16,8 @@ services:
       TZ: Europe/Rome #Asia/Shanghai 时区
       NODE_NAME: datanode1
       RUN_MODE: "master"  # 主机模式 "master"/"slave" | patroni 服务版本只用于首次设置，Leader 机由patroni进行控制
-      GAUSS_USER: gauss   # 远程管理员
-      GAUSS_PASSWORD: Gauss666 # 密码
+      GAUSS_USER: ${GAUSS_USER}   # 远程管理员
+      GAUSS_PASSWORD: ${GAUSS_PASSWORD} # 密码
       HOST_NAMES: slave01,slave02 # 主机列表
     extra_hosts:
       - "master:10.8.0.10"
@@ -27,7 +27,7 @@ services:
       - "haproxy:10.8.0.19"
 
   slave01:
-    image:  lsqtzj/openeuler_open_gauss
+    image:  lsqtzj/openeuler_open_gauss:${OPEN_GAUSS_VERSION}
     restart: always
     container_name: slave01
     hostname: slave01
@@ -36,8 +36,8 @@ services:
         ipv4_address: 10.8.0.11
     environment:
       TZ: Europe/Rome #Asia/Shanghai 时区
-      GAUSS_USER: gauss
-      GAUSS_PASSWORD: Gauss666
+      GAUSS_USER: ${GAUSS_USER}
+      GAUSS_PASSWORD: ${GAUSS_PASSWORD}
       NODE_NAME: datanode2
       RUN_MODE: "slave"
       HOST_NAMES: master,slave02
@@ -51,7 +51,7 @@ services:
       - master
 
   slave02:
-    image:  lsqtzj/openeuler_open_gauss
+    image:  lsqtzj/openeuler_open_gauss:${OPEN_GAUSS_VERSION}
     restart: always
     container_name: slave02
     hostname: slave02
@@ -60,8 +60,8 @@ services:
         ipv4_address: 10.8.0.12
     environment:
       TZ: Europe/Rome #Asia/Shanghai 时区
-      GAUSS_USER: gauss
-      GAUSS_PASSWORD: Gauss666
+      GAUSS_USER: ${GAUSS_USER}
+      GAUSS_PASSWORD: ${GAUSS_PASSWORD}
       NODE_NAME: datanode3
       RUN_MODE: "slave"
       HOST_NAMES: master,slave01
@@ -75,10 +75,7 @@ services:
       - master
   
   haproxy:
-    image: lsqtzj/openeuler_haproxy
-    build:
-      context: .
-      dockerfile: openeuler_haproxy/Dockerfile
+    image: lsqtzj/openeuler_haproxy:${HAPROXY_VERSION}
     restart: always
     container_name: haproxy
     hostname: haproxy
@@ -89,10 +86,10 @@ services:
       - 7000:7000
     environment:
       TZ: Europe/Rome #Asia/Shanghai 时区
-      PGADMIN_DEFAULT_EMAIL: admin@domain.com # pgadmin4管理员
-      PGADMIN_DEFAULT_PASSWORD: admin         # pgadmin4管理员密码
+      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_DEFAULT_EMAIL} # pgadmin4管理员
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_DEFAULT_PASSWORD}         # pgadmin4管理员密码
       ips: "10.8.0.10,10.8.0.11,10.8.0.12"
-      ports: "5432,5432,5432,5432"
+      ports: "5432,5432,5432"
     extra_hosts:
       - "master:10.8.0.10"
       - "slave01:10.8.0.11"
