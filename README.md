@@ -1,5 +1,5 @@
 # openGauss master slave 
-openGauss_2.1.0 极简版 基于openeuler/openeuler:20.03</br>
+openGauss 极简版 基于openeuler/openeuler:20.03</br>
 ## 博客地址
 https://blog.csdn.net/lsqtzj/article/details/120850420
 ## 使用方式
@@ -29,3 +29,5 @@ http://localhost:7000/ 监控
 haproxy:5000   读写</br>
 haproxy:5001   读</br>
 ![image](https://user-images.githubusercontent.com/4635861/139657547-abb4cf92-2c86-4920-9fd8-4a029a5534fd.png) 
+## openGauss 更新到 3.0.0 版本
+docker-compose 基本配置 放到 .env 文件中。
