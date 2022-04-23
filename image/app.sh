@@ -20,6 +20,10 @@ if [ -z "${RUN_MODE}" ]; then
     echo "Error: No RUN_MODE environment"
     exit 0
 fi
+if [ -z "${SOFT_HOME}" ]; then
+    SOFT_HOME=/opt/software
+    GAUSSHOME=$SOFT_HOME/openGauss
+fi
 
 GAUSS_PORT=5432
 waitterm() {
@@ -78,14 +82,8 @@ function checkStart() {
     #显示光标
     printf "\e[?25h""\n"
 }
-
-function init_db() {
-    get_HOST_NAMES_IP
-    if [[ ! -f "$GAUSSHOME/data/isconfig" ]]; then        
-        rm -rf $GAUSSHOME/data
-        echo "[step 1]: init data node"
-        gs_initdb -D $GAUSSHOME/data --nodename=$NODE_NAME -E UTF-8 --locale=en_US.UTF-8 -U omm  -w $GAUSS_PASSWORD
-        echo "[step 2]: config datanode."
+function config_datanode(){
+echo "[step 2]: config datanode."
         local -a ip_arr
         local -i index=0
         local -a subnet_arr
@@ -133,6 +131,14 @@ function init_db() {
         for subnet in $subnet_arr;do
             gs_guc set -D $GAUSSHOME/data -h "host all omm $subnet/24  trust"
         done
+}
+function init_db() {
+    get_HOST_NAMES_IP
+    if [[ ! -f "$GAUSSHOME/data/isconfig" ]]; then
+        rm -Rf $GAUSSHOME/data/*
+        echo "[step 1]: init data node"
+        gs_initdb -D $GAUSSHOME/data --nodename=$NODE_NAME -E UTF-8 --locale=en_US.UTF-8 -U omm  -w $GAUSS_PASSWORD
+        config_datanode
         echo "[step 3]: start single_node." 
         gs_ctl start -D $GAUSSHOME/data  -Z single_node -l logfile
         echo "[step 4]: CREATE USER $GAUSS_USER." 
@@ -143,6 +149,8 @@ function init_db() {
         first_Start_OpenGauss        
         echo -e "\033[32m **********************Open Gauss initialization completed*************************\033[0m"        
         echo $(date) "- init ok" > $GAUSSHOME/data/isconfig
+    else
+        config_datanode
     fi
 }
 
@@ -150,8 +158,12 @@ function init_db() {
 # 生成 IP_CLUSTER_ARR, CLUSTER_HOSTNAME_ARR
 # 用 environment 设置: HOST_NAMES
 get_HOST_NAMES_IP () {
-    echo "----set HOST NAMES IP-----"
+    echo "----set HOST NAMES IP-----"    
     HOST_NAMES_ARR=(${HOST_NAMES//,/ })
+    # 删除本机
+    HOSTNAME=$(cat /proc/sys/kernel/hostname)
+    HOST_NAMES_ARR=(${HOST_NAMES_ARR[*]/$HOSTNAME})
+
     IP_CLUSTER_ARR=()
     CLUSTER_HOSTNAME_ARR=()
     local len_hosts=${#HOST_NAMES_ARR[*]}
@@ -190,6 +202,7 @@ get_ETCD_INITIAL_CLUSTER () {
 
 set_etcd_config() {
     get_ETCD_INITIAL_CLUSTER
+    cp $SOFT_HOME/etcd.sample.conf $SOFT_HOME/etcd.conf
     sed -i "/^data-dir:/c\data-dir: $SOFT_HOME/default.etcd" $SOFT_HOME/etcd.conf
     sed -i "/^name:/c\name: ${HOSTNAME}" $SOFT_HOME/etcd.conf 
     sed -i "/^listen-peer-urls:/c\listen-peer-urls: http:\/\/${HOST_IP}:2380" $SOFT_HOME/etcd.conf 
@@ -212,7 +225,8 @@ get_ETCD_HOSTS () {
 }
 
 set_patroni_config() {
-    get_ETCD_HOSTS        
+    get_ETCD_HOSTS    
+    cp $SOFT_HOME/patroni.sample.yaml $SOFT_HOME/patroni.yaml
     sed -i "s/^name: name/name: $HOSTNAME/" $SOFT_HOME/patroni.yaml
     sed -i "s/^  listen: localhost:8008/  listen: $HOST_IP:8008/" $SOFT_HOME/patroni.yaml
     sed -i "s/^  connect_address: localhost:8008/  connect_address: $HOST_IP:8008/" $SOFT_HOME/patroni.yaml
@@ -349,7 +363,6 @@ function status_db(){
     netstat -tunlp
 }
 echo "==> START Service ..."
-
 set_environment
 init_db
 start_db

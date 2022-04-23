@@ -1,5 +1,7 @@
-# openGauss master slave 
+# openGauss 高可用集群说明
 openGauss 极简版 基于openeuler/openeuler:20.03</br>
+包括 patroni自动主备切换，haproxy 负载均衡， pgAdmin4 管理工具</br>
+必须保证有两个以上的openGauss容器运行。
 ## 博客地址
 https://blog.csdn.net/lsqtzj/article/details/120850420
 ## 使用方式
@@ -31,3 +33,41 @@ haproxy:5001   读</br>
 ![image](https://user-images.githubusercontent.com/4635861/139657547-abb4cf92-2c86-4920-9fd8-4a029a5534fd.png) 
 ## openGauss 更新到 3.0.0 版本
 docker-compose 基本配置 放到 .env 文件中。
+## 添加数据持久化
+默认保存在 ./data 目录
+## 改进新加主机功能
+如：新添加 slave03 主机，打开docker-compose.yml 文件复制 slave02 节点的配置，用来创建新主机。
+### 1. 添加节点
+```
+...
+slave03:
+    image:  lsqtzj/openeuler_open_gauss:${OPEN_GAUSS_VERSION}
+    restart: always
+    container_name: slave03
+    hostname: slave03
+    networks:
+      gauss:
+        ipv4_address: 10.8.0.13
+    environment:
+      TZ: Europe/Rome #Asia/Shanghai 时区
+      GAUSS_USER: ${GAUSS_USER}
+      GAUSS_PASSWORD: ${GAUSS_PASSWORD}
+      NODE_NAME: datanode4
+      RUN_MODE: "slave"
+      HOST_NAMES: ${HOST_NAMES}
+    volumes:
+      - ./data/slave03/data:/opt/software/openGauss/data      
+      - ./data/slave03/logs:/opt/software/openGauss/logs
+    depends_on:
+      - master
+...
+```  
+### 2.修改变量
+修改 .env 文件添加新主机
+```
+...
+HOST_NAMES=master,slave01,slave02,slave03
+HAPROXY_IPS=10.8.0.10,10.8.0.11,10.8.0.12,10.8.0.13
+HAPROXY_PORTS=5432,5432,5432,5432
+...
+```

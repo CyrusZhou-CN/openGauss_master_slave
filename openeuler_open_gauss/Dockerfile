@@ -10,6 +10,7 @@ RUN groupadd -r dbgrp && useradd -g dbgrp -G root omm && \
     tar -jxf /tmp/openGauss-*-openEuler-64bit.tar.bz2 -C /opt/software/openGauss && \
     rm -f /tmp/openGauss-*-openEuler-64bit.tar.bz2 && \
     mv /tmp/app.sh /opt/software/app.sh && \
+    mv /tmp/entrypoint.sh /opt/software/entrypoint.sh && \
     mv /tmp/etcd.conf.sample /opt/software/etcd.conf && \
     mv /tmp/patroni.yaml.sample /opt/software/patroni.yaml && \
     mv /tmp/patroni.service /etc/systemd/system/patroni.service && \
@@ -41,7 +42,8 @@ RUN chown omm:dbgrp -R /opt/software && \
     chmod -R 700 /tmp/*  && \
     chmod -R 700 /opt/software  && \
     chmod +x /opt/software/openGauss/simpleInstall/install.sh && \
-    chmod +x /opt/software/app.sh 
+    chmod +x /opt/software/app.sh  && \
+    chmod +x /opt/software/entrypoint.sh
 
 # 临时解决 host: command not found
 RUN mv /tmp/host /usr/bin/host && \
@@ -86,6 +88,8 @@ RUN  /usr/local/python3.7/bin/python3.7 -m pip install --upgrade pip --user && \
     pip install -r requirements.txt --user && \
     python setup.py build && python setup.py install --user && \
     rm -rf /opt/software/patroni_openGauss /opt/software/psycopg2
-
-ENTRYPOINT [ "/opt/software/app.sh" ]
+RUN mv $SOFT_HOME/etcd.conf $SOFT_HOME/etcd.sample.conf
+RUN mv $SOFT_HOME/patroni.yaml $SOFT_HOME/patroni.sample.yaml
+USER root
+ENTRYPOINT [ "/opt/software/entrypoint.sh" ]
 CMD ["/bin/bash"]
