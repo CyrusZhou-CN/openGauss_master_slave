@@ -148,7 +148,8 @@ function init_db() {
             gs_initdb -D $GAUSSHOME/data --nodename=$NODE_NAME -E UTF-8 --locale=en_US.UTF-8 -U omm  -w $GAUSS_PASSWORD
             config_datanode
             # 重新生成 etcd 配置
-            set_etcd_config
+            kill -9 $(ps -ef|grep etcd|gawk '$0 !~/grep/ {print $2}' |tr -s '\n' ' ')
+            start_etcd
             echo "enable_numa = false" >> "$GAUSSHOME/data/mot.conf"
             echo "[step 3]: start single_node." 
             gs_ctl start -D $GAUSSHOME/data  -Z single_node -l logfile
