@@ -35,6 +35,10 @@ haproxy:5001   读</br>
 docker-compose 基本配置 放到 .env 文件中。
 ## 添加数据持久化
 默认保存在 ./data 目录
+### 容器目录说明
+/opt/software/openGauss/data/db 数据库目录
+/opt/software/openGauss/data/conf 配置文件目录
+/opt/software/openGauss/logs 日志目录
 ## 改进新加主机功能
 如：新添加 slave03 主机，打开docker-compose.yml 文件复制 slave02 节点的配置，用来创建新主机。
 ### 1. 添加节点
@@ -67,6 +71,7 @@ slave03:
 ```
 ...
 HOST_NAMES=master,slave01,slave02,slave03
+HOST_IPS=10.8.0.10,10.8.0.11,10.8.0.12
 HAPROXY_IPS=10.8.0.10,10.8.0.11,10.8.0.12,10.8.0.13
 HAPROXY_PORTS=5432,5432,5432,5432
 ...
@@ -78,3 +83,4 @@ HAPROXY_PORTS=5432,5432,5432,5432
 volumes:
       - ./test.sql:/docker-entrypoint-initdb.d/test.sql # 初始化数据表
 ```
+

@@ -34,7 +34,7 @@ services:
     build:
       context: .
       dockerfile: openeuler_open_gauss/Dockerfile
-    restart: always
+    #restart: always
     container_name: slave01
     hostname: slave01
     networks:
@@ -59,7 +59,7 @@ services:
     build:
       context: .
       dockerfile: openeuler_open_gauss/Dockerfile
-    restart: always
+    #restart: always
     container_name: slave02
     hostname: slave02
     networks:
@@ -74,7 +74,7 @@ services:
       HOST_NAMES: ${HOST_NAMES}
       HOST_IPS: ${HOST_IPS}
     volumes:
-      - ./data/slave02/data:/opt/software/openGauss/data      
+      - ./data/slave02/data:/opt/software/openGauss/data
       - ./data/slave02/logs:/opt/software/openGauss/logs
     depends_on:
       - master
