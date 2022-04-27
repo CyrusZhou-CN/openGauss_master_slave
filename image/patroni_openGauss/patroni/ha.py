@@ -6,7 +6,6 @@ import psycopg2
 import sys
 import time
 import uuid
-import os
 
 from collections import namedtuple
 from multiprocessing.pool import ThreadPool
@@ -446,8 +445,6 @@ class Ha(object):
                 self._rewind.trigger_check_diverged_lsn()
             elif action == 'rebuild':
                 logger.info('the standby is abnormal and rebuilding')
-                #self._async_executor.try_run_async('the standby is abnormal and restarting',
-                #            self.state_handler.follow, args=(node_to_follow, role, None, False, True, True))
                 self.state_handler.rebuild()
                 time.sleep(5)
                 status, output = self.state_handler.gs_query()
@@ -662,10 +659,6 @@ class Ha(object):
                 self._async_executor.try_run_async('promote', self.state_handler.promote,
                                                    args=(self.dcs.loop_wait, self._async_response, on_success,
                                                          self._leader_access_is_restricted))
-                recovery_conf = os.path.join(self.state_handler.data_dir, 'recovery.conf')
-                if os.path.isfile(recovery_conf) or os.path.islink(recovery_conf):
-                    os.rename(recovery_conf, os.path.join(self.state_handler.data_dir, 'recovery.done'))
-                    self.state_handler.pg_ctl('restart')
             return promote_message
 
     def fetch_node_status(self, member):

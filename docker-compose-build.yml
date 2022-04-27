@@ -5,7 +5,7 @@ services:
     build:
       context: .
       dockerfile: openeuler_open_gauss/Dockerfile
-    restart: always
+    #restart: always
     container_name: master
     hostname: master
     networks:
@@ -21,10 +21,13 @@ services:
       RUN_MODE: "master"  # 主机模式 "master"/"slave" | patroni 服务版本只用于首次设置，Leader 机由patroni进行控制
       GAUSS_USER: ${GAUSS_USER}   # 远程管理员
       GAUSS_PASSWORD: ${GAUSS_PASSWORD} # 密码
-      HOST_NAMES: ${HOST_NAMES}
+      HOST_NAMES: ${HOST_NAMES} # 主机列表
+      HOST_IPS: ${HOST_IPS}
+      GAUSS_DATABASE: test # 初始化数据库 \c 切换数据库 要输入密码，所以加这个参数用来创建数据库
     volumes:
       - ./data/master/data:/opt/software/openGauss/data      
       - ./data/master/logs:/opt/software/openGauss/logs
+      - ./test.sql:/docker-entrypoint-initdb.d/test.sql # 初始化数据表
 
   slave01:
     image: lsqtzj/openeuler_open_gauss:${OPEN_GAUSS_VERSION}
@@ -44,6 +47,7 @@ services:
       NODE_NAME: datanode2
       RUN_MODE: "slave"
       HOST_NAMES: ${HOST_NAMES}
+      HOST_IPS: ${HOST_IPS}
     volumes:
       - ./data/slave01/data:/opt/software/openGauss/data      
       - ./data/slave01/logs:/opt/software/openGauss/logs
@@ -68,6 +72,7 @@ services:
       NODE_NAME: datanode3
       RUN_MODE: "slave"
       HOST_NAMES: ${HOST_NAMES}
+      HOST_IPS: ${HOST_IPS}
     volumes:
       - ./data/slave02/data:/opt/software/openGauss/data      
       - ./data/slave02/logs:/opt/software/openGauss/logs

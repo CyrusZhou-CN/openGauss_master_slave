@@ -6,7 +6,7 @@ openGauss 极简版 基于openeuler/openeuler:20.03</br>
 https://blog.csdn.net/lsqtzj/article/details/120850420
 ## 使用方式
 下载源码</br>
-git clone https://github.com/lsqtzj/openGauss_master_slave.git</br>
+git clone https://github.com/CyrusZhou-CN/openGauss_master_slave.git</br>
 cd openGauss_master_slave</br>
 ### 编译版本
 docker-compose -f "docker-compose-build.yml" up -d --build</br>
@@ -70,4 +70,11 @@ HOST_NAMES=master,slave01,slave02,slave03
 HAPROXY_IPS=10.8.0.10,10.8.0.11,10.8.0.12,10.8.0.13
 HAPROXY_PORTS=5432,5432,5432,5432
 ...
+```
+### 初始化数据
+#### 只有 RUN_MODE: "master" ，首次启动容器时有效
+#### GAUSS_DATABASE: test # 初始化数据库 \c 切换数据库 要输入密码，所以加这个参数用来创建数据库
+```
+volumes:
+      - ./test.sql:/docker-entrypoint-initdb.d/test.sql # 初始化数据表
 ```

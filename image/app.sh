@@ -20,11 +20,19 @@ if [ -z "${RUN_MODE}" ]; then
     echo "Error: No RUN_MODE environment"
     exit 0
 fi
+if [ -z "${HOST_NAMES}" ]; then
+    echo "Error: No HOST_NAMES environment"
+    exit 0
+fi
+if [ -z "${HOST_IPS}" ]; then
+    echo "Error: No HOST_IPS environment"
+    exit 0
+fi
 if [ -z "${SOFT_HOME}" ]; then
     SOFT_HOME=/opt/software
     GAUSSHOME=$SOFT_HOME/openGauss
 fi
-
+LOGS_HOME=$GAUSSHOME/logs
 GAUSS_PORT=5432
 waitterm() {
     local PID
@@ -76,93 +84,113 @@ function checkStart() {
     echo ""
     if [ $isrun == 1 ]; then
         echo -e "\033[32m $name start successful \033[0m" 
+        return 0
     else
         echo -e "\033[31m $name start timeout \033[0m"
+        return 1
     fi
     #显示光标
     printf "\e[?25h""\n"
 }
 function config_datanode(){
-echo "[step 2]: config datanode."
-        local -a ip_arr
-        local -i index=0
-        local -a subnet_arr
-        for line in $(/sbin/ifconfig -a|grep inet|grep -v 127.0.0.1|grep -v inet6|awk '{print $2}'|tr -d "addr:")
-        do
-            ip_arr[index]=$line
-            subnet_arr[index]=$(echo $line | sed 's/\([0-9]*\.[0-9]*\.[0-9]*\.\)[0-9]*/\10/')
-            let index=$index+1
-        done
-        #清除数组重复值
-        subnet_arr=($(echo ${subnet_arr[*]} | sed 's/ /\n/g' | sort |uniq))
+    echo "[step 2]: config datanode."
+    local -a ip_arr
+    local -i index=0
+    local -a subnet_arr
+    for line in $(/sbin/ifconfig -a|grep inet|grep -v 127.0.0.1|grep -v inet6|awk '{print $2}'|tr -d "addr:")
+    do
+        ip_arr[index]=$line
+        subnet_arr[index]=$(echo $line | sed 's/\([0-9]*\.[0-9]*\.[0-9]*\.\)[0-9]*/\10/')
+        let index=$index+1
+    done
+    #清除数组重复值
+    subnet_arr=($(echo ${subnet_arr[*]} | sed 's/ /\n/g' | sort |uniq))
 
-        gs_guc set -D $GAUSSHOME/data -c "port = ${GAUSS_PORT}"  \
-        -c "listen_addresses = '*'" \
-        -c "local_bind_address = '0.0.0.0'"  \
-        -c "most_available_sync = on"  \
-        -c "pgxc_node_name = '${HOSTNAME}'"  \
-        -c "wal_level = logical"  \
-        -c "password_encryption_type= 0"  \
-        -c "synchronous_standby_names='*'"  \
-        -c "max_wal_senders=16"  \
-        -c "max_replication_slots=9"  \
-        -c "wal_sender_timeout=0s" \
-        -c "wal_receiver_timeout=0s"\
-        -c "most_available_sync = on" \
-        -c "remote_read_mode = off" \
-        -c "application_name = '$HOSTNAME'" \
-        -c "remote_read_mode = non_authentication"
-
-        echo "enable_numa = false" >> "$GAUSSHOME/data/mot.conf"
-        i=1
-        if [[ -z $IP_CLUSTER_ARR ]]; then
-            IP_CLUSTER_ARR="127.0.0.1"
-        fi
-        local len=$(($PEER_NUM - 1))
-        for i in $(seq 0 ${len}); do
-            gs_guc set -D $GAUSSHOME/data -c "replconninfo$(($i+1)) = 'localhost=${ip_arr[0]} localport=$(($GAUSS_PORT+1)) localheartbeatport=$(($GAUSS_PORT+5)) localservice=$(($GAUSS_PORT+4))  remotehost=${IP_CLUSTER_ARR[$i]} remoteport=$(($GAUSS_PORT+1)) remoteheartbeatport=$(($GAUSS_PORT+5)) remoteservice=$(($GAUSS_PORT+4))'"
-        done
-        
-        #   TYPE    DATABASE        USER            ADDRESS          METHOD
-        #   host    all             all             10.8.0.0/24      trust
-        #   host    all             all             0.0.0.0/0        sha256
-        #   host    all             all             10.8.0.0/24      trust
-        gs_guc set -D $GAUSSHOME/data -h "host all $GAUSS_USER 0.0.0.0/0  md5"
-        for subnet in $subnet_arr;do
-            gs_guc set -D $GAUSSHOME/data -h "host all omm $subnet/24  trust"
-        done
+    gs_guc set -D $GAUSSHOME/data -c "port = ${GAUSS_PORT}"  \
+    -c "listen_addresses = '*'" \
+    -c "local_bind_address = '0.0.0.0'"  \
+    -c "most_available_sync = on"  \
+    -c "pgxc_node_name = '${HOSTNAME}'"  \
+    -c "wal_level = logical"  \
+    -c "password_encryption_type= 0"  \
+    -c "synchronous_standby_names='*'"  \
+    -c "max_wal_senders=16"  \
+    -c "max_replication_slots=9"  \
+    -c "wal_sender_timeout=0s" \
+    -c "wal_receiver_timeout=0s"\
+    -c "most_available_sync = on" \
+    -c "remote_read_mode = off" \
+    -c "application_name = '$HOSTNAME'" \
+    -c "remote_read_mode = non_authentication"
+    i=1
+    if [[ -z $IP_CLUSTER_ARR ]]; then
+        IP_CLUSTER_ARR="127.0.0.1"
+    fi
+    local len=$(($PEER_NUM - 1))
+    for i in $(seq 0 ${len}); do
+        gs_guc set -D $GAUSSHOME/data -c "replconninfo$(($i+1)) = 'localhost=${ip_arr[0]} localport=$(($GAUSS_PORT+1)) localheartbeatport=$(($GAUSS_PORT+5)) localservice=$(($GAUSS_PORT+4))  remotehost=${IP_CLUSTER_ARR[$i]} remoteport=$(($GAUSS_PORT+1)) remoteheartbeatport=$(($GAUSS_PORT+5)) remoteservice=$(($GAUSS_PORT+4))'"
+    done
+    
+    #   TYPE    DATABASE        USER            ADDRESS          METHOD
+    #   host    all             all             10.8.0.0/24      trust
+    #   host    all             all             0.0.0.0/0        sha256
+    #   host    all             all             10.8.0.0/24      trust
+    gs_guc set -D $GAUSSHOME/data -h "host all $GAUSS_USER 0.0.0.0/0  md5"
+    for subnet in $subnet_arr;do
+        gs_guc set -D $GAUSSHOME/data -h "host all omm $subnet/24  trust"
+    done
 }
-function init_db() {
-    get_HOST_NAMES_IP
-    if [[ ! -f "$GAUSSHOME/data/isconfig" ]]; then
-        rm -Rf $GAUSSHOME/data/*
-        echo "[step 1]: init data node"
-        gs_initdb -D $GAUSSHOME/data --nodename=$NODE_NAME -E UTF-8 --locale=en_US.UTF-8 -U omm  -w $GAUSS_PASSWORD
-        config_datanode
-        echo "[step 3]: start single_node." 
-        gs_ctl start -D $GAUSSHOME/data  -Z single_node -l logfile
-        echo "[step 4]: CREATE USER $GAUSS_USER." 
-        gsql -d postgres -c "CREATE USER $GAUSS_USER WITH SYSADMIN CREATEDB USEFT CREATEROLE INHERIT LOGIN REPLICATION IDENTIFIED BY '$GAUSS_PASSWORD';"
-        echo "[step 5]: stop single_node." 
-        gs_ctl stop -D $GAUSSHOME/data
+function init_db() {    
+    if [[ ! -f "$GAUSSHOME/data/config_first_start" ]]; then
+        if [[ ! -f "$GAUSSHOME/data/config_single_node" ]]; then
+            rm -Rf $GAUSSHOME/data/*
+            echo "[step 1]: init data node"
+            gs_initdb -D $GAUSSHOME/data --nodename=$NODE_NAME -E UTF-8 --locale=en_US.UTF-8 -U omm  -w $GAUSS_PASSWORD
+            config_datanode
+            # 重新生成 etcd 配置
+            set_etcd_config
+            echo "enable_numa = false" >> "$GAUSSHOME/data/mot.conf"
+            echo "[step 3]: start single_node." 
+            gs_ctl start -D $GAUSSHOME/data  -Z single_node -l logfile
+            echo "[step 4]: CREATE USER $GAUSS_USER." 
+            gsql -d postgres -c "CREATE USER $GAUSS_USER WITH SYSADMIN CREATEDB USEFT CREATEROLE INHERIT LOGIN REPLICATION IDENTIFIED BY '$GAUSS_PASSWORD';"
+            if [ $RUN_MODE == "master" ]; then
+                echo -e "\033[32m ********************** docker entrypoint initdb *************************\033[0m" 
+                # master 初始化数据库            
+                if [ "$GAUSS_DATABASE" ]; then
+                    gsql -d postgres -c "CREATE DATABASE $GAUSS_DATABASE WITH OWNER = $GAUSS_USER ENCODING = 'UTF8' CONNECTION LIMIT = -1;"            
+                    for f in /docker-entrypoint-initdb.d/*; do
+                        case "$f" in
+                            *.sql) echo "[Entrypoint] running $f"; gsql -U $GAUSS_USER -W $GAUSS_PASSWORD -d $GAUSS_DATABASE -f "$f" && echo ;;
+                            *)     echo "[Entrypoint] ignoring $f" ;;
+                        esac
+                        echo
+                    done
+                fi
+            fi
+            echo "[step 5]: stop single_node." 
+            gs_ctl stop -D $GAUSSHOME/data
+            echo $(date) "- single_node ok" > $GAUSSHOME/data/config_single_node
+        fi
         echo "[step 6]:first Start OpenGauss"
-        first_Start_OpenGauss        
+        first_Start_OpenGauss
         echo -e "\033[32m **********************Open Gauss initialization completed*************************\033[0m"        
-        echo $(date) "- init ok" > $GAUSSHOME/data/isconfig
+        echo $(date) "- init ok" > $GAUSSHOME/data/config_first_start
     else
         config_datanode
     fi
 }
-
 
 # 生成 IP_CLUSTER_ARR, CLUSTER_HOSTNAME_ARR
 # 用 environment 设置: HOST_NAMES
 get_HOST_NAMES_IP () {
     echo "----set HOST NAMES IP-----"    
     HOST_NAMES_ARR=(${HOST_NAMES//,/ })
+    HOST_IPS_ARR=(${HOST_IPS//,/ })
     # 删除本机
     HOSTNAME=$(cat /proc/sys/kernel/hostname)
-    HOST_NAMES_ARR=(${HOST_NAMES_ARR[*]/$HOSTNAME})
+    HOST_NAMES_ARR=(${HOST_NAMES_ARR[*]/$HOSTNAME})    
+    HOST_IPS_ARR=(${HOST_IPS_ARR[*]/$HOST_IP})
 
     IP_CLUSTER_ARR=()
     CLUSTER_HOSTNAME_ARR=()
@@ -172,7 +200,7 @@ get_HOST_NAMES_IP () {
     for i in $(seq 0 $(($len_hosts - 1))); do
         while :
         do
-            local tempip=`host ${HOST_NAMES_ARR[$i]} | grep -Eo "[0-9]+.[0-9]+.[0-9]+.[0-9]+"`
+            tempip=${HOST_IPS_ARR[$i]}
             if [ -n "$tempip" ]; then            
                 echo 'HOST_NAMES_ARR:'${HOST_NAMES_ARR[$i]}
                 IP_CLUSTER_ARR[$i]="$tempip"
@@ -191,30 +219,38 @@ get_HOST_NAMES_IP () {
 
 get_ETCD_INITIAL_CLUSTER () {
     echo "----get_ETCD_INITIAL_CLUSTER-----"
-    ETCD_INITIAL_CLUSTER="${HOSTNAME}=http://${HOST_IP}:2380"
     local len=$(($PEER_NUM - 1))
-    for i in $(seq 0 ${len}); do
-            echo "${i}  ${CLUSTER_HOSTNAME_ARR[$i]}  ${IP_CLUSTER_ARR[$i]}"
+    ETCD_INITIAL_CLUSTER="${HOSTNAME}=http://${HOST_IP}:2380"
+    CLIENT_URLS="http://${HOST_IP}:2379"
+    for i in $(seq 0 ${len}); do        
+        echo "${i}  ${CLUSTER_HOSTNAME_ARR[$i]}  ${IP_CLUSTER_ARR[$i]}"
+        if [ -z "${ETCD_INITIAL_CLUSTER}" ]; then
+            ETCD_INITIAL_CLUSTER="${CLUSTER_HOSTNAME_ARR[$i]}=http://${IP_CLUSTER_ARR[$i]}:2380"
+            CLIENT_URLS="http://${IP_CLUSTER_ARR[$i]}:2379"
+        else
             ETCD_INITIAL_CLUSTER="${ETCD_INITIAL_CLUSTER},${CLUSTER_HOSTNAME_ARR[$i]}=http://${IP_CLUSTER_ARR[$i]}:2380"
+            CLIENT_URLS="${CLIENT_URLS},http://${IP_CLUSTER_ARR[$i]}:2379"
+        fi
     done
     echo "ETCD_INITIAL_CLUSTER:$ETCD_INITIAL_CLUSTER"
 }
 
 set_etcd_config() {
+    get_HOST_NAMES_IP
     get_ETCD_INITIAL_CLUSTER
-    cp $SOFT_HOME/etcd.sample.conf $SOFT_HOME/etcd.conf
-    sed -i "/^data-dir:/c\data-dir: $SOFT_HOME/default.etcd" $SOFT_HOME/etcd.conf
-    sed -i "/^name:/c\name: ${HOSTNAME}" $SOFT_HOME/etcd.conf 
-    sed -i "/^listen-peer-urls:/c\listen-peer-urls: http:\/\/${HOST_IP}:2380" $SOFT_HOME/etcd.conf 
-    sed -i "/^initial-advertise-peer-urls:/c\initial-advertise-peer-urls: http:\/\/${HOST_IP}:2380" $SOFT_HOME/etcd.conf 
-    sed -i "/^advertise-client-urls:/c\advertise-client-urls: http:\/\/${HOST_IP}:2379" $SOFT_HOME/etcd.conf
-    sed -i "/^listen-client-urls:/c\listen-client-urls: http:\/\/${HOST_IP}:2379" $SOFT_HOME/etcd.conf
-    sed -i "/^initial-cluster:/c\initial-cluster: ${ETCD_INITIAL_CLUSTER}" $SOFT_HOME/etcd.conf
-    sed -i "/^initial-cluster-token:/c\initial-cluster-token: 'cluster1'" $SOFT_HOME/etcd.conf
-    
-    if [ -n "${INITIAL_CLUSTER_STATE}" ] && [ "${INITIAL_CLUSTER_STATE}" == "existing" ]; then
-        sed -i "/^initial-cluster-state:/c\initial-cluster-state: 'existing'" $SOFT_HOME/etcd.conf
-    fi
+    cp $SOFT_HOME/etcd.conf.sample $GAUSSHOME/data/etcd.conf
+    sed -i "/^data-dir:/c\data-dir: '$SOFT_HOME/default.etcd'" $GAUSSHOME/data/etcd.conf
+    sed -i "/^name:/c\name: '${HOSTNAME}'" $GAUSSHOME/data/etcd.conf 
+    sed -i "/^listen-peer-urls:/c\listen-peer-urls: 'http:\/\/0.0.0.0:2380'" $GAUSSHOME/data/etcd.conf 
+    sed -i "/^initial-advertise-peer-urls:/c\initial-advertise-peer-urls: 'http:\/\/${HOST_IP}:2380'" $GAUSSHOME/data/etcd.conf 
+    sed -i "/^advertise-client-urls:/c\advertise-client-urls: 'http://0.0.0.0:2379,http://0.0.0.0:4001'" $GAUSSHOME/data/etcd.conf
+    sed -i "/^listen-client-urls:/c\listen-client-urls: 'http://0.0.0.0:2379,http://0.0.0.0:4001'" $GAUSSHOME/data/etcd.conf
+    sed -i "/^initial-cluster:/c\initial-cluster: '${ETCD_INITIAL_CLUSTER}'" $GAUSSHOME/data/etcd.conf
+    sed -i "/^initial-cluster-token:/c\initial-cluster-token: 'cluster1'" $GAUSSHOME/data/etcd.conf
+    sed -i "/^log-level:/c\#log-level: debug" $GAUSSHOME/data/etcd.conf
+    sed -i "/^cors:/c\cors: '*'" $GAUSSHOME/data/etcd.conf
+
+    export CLIENT_URLS=${CLIENT_URLS}
 }
 
 get_ETCD_HOSTS () {
@@ -226,23 +262,23 @@ get_ETCD_HOSTS () {
 
 set_patroni_config() {
     get_ETCD_HOSTS    
-    cp $SOFT_HOME/patroni.sample.yaml $SOFT_HOME/patroni.yaml
-    sed -i "s/^name: name/name: $HOSTNAME/" $SOFT_HOME/patroni.yaml
-    sed -i "s/^  listen: localhost:8008/  listen: $HOST_IP:8008/" $SOFT_HOME/patroni.yaml
-    sed -i "s/^  connect_address: localhost:8008/  connect_address: $HOST_IP:8008/" $SOFT_HOME/patroni.yaml
-    sed -i "s/^  host: localhost:2379/  hosts: $ETCD_HOSTS/" $SOFT_HOME/patroni.yaml
-    sed -i "s/^  listen: localhost:16000/  listen: $HOST_IP:$GAUSS_PORT/" $SOFT_HOME/patroni.yaml
-    sed -i "s#^  data_dir: /var/lib/opengauss/data#  data_dir: $GAUSSHOME/data#" $SOFT_HOME/patroni.yaml
-    sed -i "s#^  bin_dir: /usr/local/opengauss/bin#  bin_dir: $GAUSSHOME/bin#" $SOFT_HOME/patroni.yaml
-    sed -i "s#^  config_dir: /var/lib/opengauss/data#  config_dir: $GAUSSHOME/data#" $SOFT_HOME/patroni.yaml
-    sed -i "s#^  custom_conf: /var/lib/opengauss/data/postgresql.conf#  custom_conf: $GAUSSHOME/data/postgresql.conf#" $SOFT_HOME/patroni.yaml
-    sed -i "s/^  connect_address: localhost:16000/  connect_address: $HOST_IP:$GAUSS_PORT/" $SOFT_HOME/patroni.yaml
-    sed -i "s/^      username: superuser/      username: $GAUSS_USER/" $SOFT_HOME/patroni.yaml
-    sed -i "s/^      password: superuser_123/      password: $GAUSS_PASSWORD/" $SOFT_HOME/patroni.yaml
-    sed -i "s/^      username: repl/      username: $GAUSS_USER/" $SOFT_HOME/patroni.yaml
-    sed -i "s/^      password: repl_123/      password: $GAUSS_PASSWORD/" $SOFT_HOME/patroni.yaml
-    sed -i "s/^      username: rewind/      username: $GAUSS_USER/" $SOFT_HOME/patroni.yaml
-    sed -i "s/^      password: rewind_123/      password: $GAUSS_PASSWORD/" $SOFT_HOME/patroni.yaml
+    cp $SOFT_HOME/patroni.yaml.sample $GAUSSHOME/data/patroni.yaml
+    sed -i "s/^name: name/name: $HOSTNAME/" $GAUSSHOME/data/patroni.yaml
+    sed -i "s/^  listen: localhost:8008/  listen: $HOST_IP:8008/" $GAUSSHOME/data/patroni.yaml
+    sed -i "s/^  connect_address: localhost:8008/  connect_address: $HOST_IP:8008/" $GAUSSHOME/data/patroni.yaml
+    sed -i "s/^  host: localhost:2379/  hosts: $ETCD_HOSTS/" $GAUSSHOME/data/patroni.yaml
+    sed -i "s/^  listen: localhost:16000/  listen: $HOST_IP:$GAUSS_PORT/" $GAUSSHOME/data/patroni.yaml
+    sed -i "s#^  data_dir: /var/lib/opengauss/data#  data_dir: $GAUSSHOME/data#" $GAUSSHOME/data/patroni.yaml
+    sed -i "s#^  bin_dir: /usr/local/opengauss/bin#  bin_dir: $GAUSSHOME/bin#" $GAUSSHOME/data/patroni.yaml
+    sed -i "s#^  config_dir: /var/lib/opengauss/data#  config_dir: $GAUSSHOME/data#" $GAUSSHOME/data/patroni.yaml
+    sed -i "s#^  custom_conf: /var/lib/opengauss/data/postgresql.conf#  custom_conf: $GAUSSHOME/data/postgresql.conf#" $GAUSSHOME/data/patroni.yaml
+    sed -i "s/^  connect_address: localhost:16000/  connect_address: $HOST_IP:$GAUSS_PORT/" $GAUSSHOME/data/patroni.yaml
+    sed -i "s/^      username: superuser/      username: $GAUSS_USER/" $GAUSSHOME/data/patroni.yaml
+    sed -i "s/^      password: superuser_123/      password: $GAUSS_PASSWORD/" $GAUSSHOME/data/patroni.yaml
+    sed -i "s/^      username: repl/      username: $GAUSS_USER/" $GAUSSHOME/data/patroni.yaml
+    sed -i "s/^      password: repl_123/      password: $GAUSS_PASSWORD/" $GAUSSHOME/data/patroni.yaml
+    sed -i "s/^      username: rewind/      username: $GAUSS_USER/" $GAUSSHOME/data/patroni.yaml
+    sed -i "s/^      password: rewind_123/      password: $GAUSS_PASSWORD/" $GAUSSHOME/data/patroni.yaml
 }
 
 function set_environment() {    
@@ -296,10 +332,13 @@ first_Start_OpenGauss() {
         if [ $RUN_MODE == "master" ]; then
             echo -e "\033[32m ==> Start OpenGauss primary  <== \033[0m"
             gs_ctl restart -D "$GAUSSHOME/data" -M primary
+            local len=$(($PEER_NUM))
+            checkStart "check slave" "echo start | gs_ctl query -D $GAUSSHOME/data | grep -c sync_percent | grep -c $len" 12000
         else 
             echo -e "\033[32m ==> Start OpenGauss standby  <== \033[0m"
             gs_ctl restart -D "$GAUSSHOME/data" -M standby
-            gs_ctl build -D "$GAUSSHOME/data" -b full
+            echo -e "\033[32m ==> Wait for the master to completed  <== \033[0m"
+            checkStart "connect to server master" "echo start | gs_ctl build -D "$GAUSSHOME/data" -b full | grep -c 'connect to server success, build started.'" 15
         fi
         if [ $? -eq 0 ]; then
             break
@@ -309,43 +348,28 @@ first_Start_OpenGauss() {
             sleep 1s
         fi
     done
-    if [ $RUN_MODE == "master" ]; then
-        local -i count=0
-        echo -e "\033[32m ==> Wait for the slave to completed  <== \033[0m"
-        local len=$(($PEER_NUM - 1))
-        for i in $(seq 0 ${len}); do
-            checkStart "Check ${CLUSTER_HOSTNAME_ARR[$i]}" "echo start | telnet ${CLUSTER_HOSTNAME_ARR[$i]} 2380 | grep -c Connected" 1200
-            let count=$count+1
-        done
-        #checkStart "check master" "echo start | gs_ctl query -D $GAUSSHOME/data | grep -c sync_percent | grep -c $count" 1200
-    fi
     sleep 1s
     echo -e "\033[32m ==> Stop:first Start OpenGauss <== \033[0m"
     gs_ctl -D "$GAUSSHOME/data" -m fast -w stop
     set -e
 }
-
-function start_db(){
-    echo "change etcd config"
+function start_etcd(){
     set_etcd_config
-    echo "change patroni config"
-    set_patroni_config
     echo -e "\033[32m ==> Start $(etcd --version | grep etcd) Server... \033[0m"
-    etcd --config-file $SOFT_HOME/etcd.conf > $SOFT_HOME/etcd.log 2>&1 &
+    etcd --config-file $GAUSSHOME/data/etcd.conf > $LOGS_HOME/etcd.log 2>&1 &
+    # etcdctl --endpoints=${CLIENT_URLS} endpoint status --write-out=table
+
+}
+function start_db(){
+    echo "change patroni config"
+    set_patroni_config    
     echo -e "\033[32m ==> Start $(patroni --version) Server... \033[0m"
-    # 会阻断后面的代码，没有找到更好的解决方式
-    exec patroni $SOFT_HOME/patroni.yaml  2>&1 | tee $SOFT_HOME/patroni.log
+    exec patroni $GAUSSHOME/data/patroni.yaml 2>&1 | tee $SOFT_HOME/patroni.log
+    #nohup patroni $GAUSSHOME/data/patroni.yaml  | tee $SOFT_HOME/patroni.log 2>&1 &
     echo -e "\033[32m ==> $(gaussdb -V)<== \033[0m"
 }
 
 function stop_db(){
-    # if [ $RUN_MODE == "master"  ]; then
-    #     echo "[Stop primary data node.]"
-    #     gs_ctl stop -D $GAUSSHOME/data -M primary
-    # else
-    #     echo "[Stop slave data node.]"
-    #     gs_ctl stop -D $GAUSSHOME/data -M standby
-    # fi
     echo -e "\033[31m ==> Stop $(etcd --version | grep etcd) Server... \033[0m"
     kill -9 $(ps -ef|grep etcd|gawk '$0 !~/grep/ {print $2}' |tr -s '\n' ' ')
     echo -e "\033[31m ==> Stop $(patroni --version) Server... \033[0m"
@@ -355,15 +379,16 @@ function stop_db(){
 }
 
 function status_db(){
-    #gs_ctl query -D $GAUSSHOME/data
-    checkStart "Wait for all hosts to run OpenGauss" "echo start | patronictl -c $SOFT_HOME/patroni.yaml list | grep -c running | grep -c $(($PEER_NUM + 1))" 1200
-    echo -e "\033[32m **********************Patroni List*************************\033[0m"
-    patronictl -c $SOFT_HOME/patroni.yaml list
-    echo -e "\033[32m ===========================================================\033[0m"
+    # local len=$(($PEER_NUM))
+    # checkStart "check slave" "echo start | gs_ctl query -D $GAUSSHOME/data | grep -c sync_percent | grep -c $len" 12000
+    # echo -e "\033[32m **********************Patroni List*************************\033[0m"
+    # patronictl -c $GAUSSHOME/data/patroni.yaml list
+    # echo -e "\033[32m ===========================================================\033[0m"
     netstat -tunlp
 }
 echo "==> START Service ..."
 set_environment
+start_etcd
 init_db
 start_db
 status_db

@@ -11,10 +11,8 @@ RUN groupadd -r dbgrp && useradd -g dbgrp -G root omm && \
     rm -f /tmp/openGauss-*-openEuler-64bit.tar.bz2 && \
     mv /tmp/app.sh /opt/software/app.sh && \
     mv /tmp/entrypoint.sh /opt/software/entrypoint.sh && \
-    mv /tmp/etcd.conf.sample /opt/software/etcd.conf && \
-    mv /tmp/patroni.yaml.sample /opt/software/patroni.yaml && \
-    mv /tmp/patroni.service /etc/systemd/system/patroni.service && \
-    mv /tmp/etcd.service /etc/systemd/system/etcd.service
+    mv /tmp/etcd.conf.sample /opt/software/etcd.conf.sample && \
+    mv /tmp/patroni.yaml.sample /opt/software/patroni.yaml.sample 
 
 # 解决patroni找不到gs_isready问题
 RUN mv /tmp/gs_isready /opt/software/openGauss/bin/gs_isready && \
@@ -24,11 +22,8 @@ RUN mv /tmp/gs_isready /opt/software/openGauss/bin/gs_isready && \
 
 RUN mv /tmp/patroni_openGauss /opt/software/patroni_openGauss
 
-RUN tar -zxvf /tmp/psycopg2-*.tar.gz -C /opt/software/ && \
-    rm -f /tmp/psycopg2-*.tar.gz && \
-    mv /opt/software/psycopg2-* /opt/software/psycopg2
-
 ADD ./image/openGauss-*-openEuler-64bit-Libpq.tar.gz /opt/software/openGauss
+RUN rm -Rf /tmp/openGauss-3.0.0-openEuler-64bit-Libpq.tar.gz
 
 RUN tar -xzvf /tmp/etcd-*-linux-amd64.tar.gz -C /tmp/ && \
     rm -rf /tmp/etcd-*-linux-amd64.tar.gz && \
@@ -80,16 +75,19 @@ ENV LD_LIBRARY_PATH=$GAUSSHOME/lib:$LD_LIBRARY_PATH
 ENV GS_CLUSTER_NAME=dbCluster
 ENV ulimit -n 1000000
 
+RUN tar -xzvf /tmp/openGauss-*-openEuler-x86_64-Python.tar.gz -C $GAUSSHOME &&\
+    mv $GAUSSHOME/psycopg2 /usr/local/python3.7/lib/python3.7/site-packages/psycopg2 &&\
+    rm -Rf /tmp/*
+
 RUN  /usr/local/python3.7/bin/python3.7 -m pip install --upgrade pip --user && \
     pip install wheel --user && \
-    cd /opt/software/psycopg2 && \
-    python setup.py build && python setup.py install --user && \
     cd /opt/software/patroni_openGauss && \
     pip install -r requirements.txt --user && \
     python setup.py build && python setup.py install --user && \
-    rm -rf /opt/software/patroni_openGauss /opt/software/psycopg2
-RUN mv $SOFT_HOME/etcd.conf $SOFT_HOME/etcd.sample.conf
-RUN mv $SOFT_HOME/patroni.yaml $SOFT_HOME/patroni.sample.yaml
+    rm -rf /opt/software/patroni_openGauss
+
 USER root
+RUN yum clean all 
+RUN mkdir -p /docker-entrypoint-initdb.d
 ENTRYPOINT [ "/opt/software/entrypoint.sh" ]
 CMD ["/bin/bash"]
