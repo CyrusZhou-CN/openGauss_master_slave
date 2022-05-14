@@ -11,22 +11,23 @@ if [ -z "${GAUSS_USER}" ]; then
     echo "Error: No GAUSS USER environment"
     exit 0
 fi
-if [ -z "${NODE_NAME}" ]; then
-    echo "Error: No NODE_NAME environment"
-    exit 0
-fi
-
 if [ -z "${RUN_MODE}" ]; then
-    echo "Error: No RUN_MODE environment"
-    exit 0
+    RUN_MODE="standard"
 fi
-if [ -z "${HOST_NAMES}" ]; then
-    echo "Error: No HOST_NAMES environment"
-    exit 0
-fi
-if [ -z "${HOST_IPS}" ]; then
-    echo "Error: No HOST_IPS environment"
-    exit 0
+if [ $RUN_MODE != "standard" ]; then
+    if [ -z "${NODE_NAME}" ]; then
+        echo "Error: No NODE_NAME environment"
+        exit 0
+    fi
+
+    if [ -z "${HOST_NAMES}" ]; then
+        echo "Error: No HOST_NAMES environment"
+        exit 0
+    fi
+    if [ -z "${HOST_IPS}" ]; then
+        echo "Error: No HOST_IPS environment"
+        exit 0
+    fi
 fi
 if [ -z "${SOFT_HOME}" ]; then
     SOFT_HOME=/opt/software
@@ -104,19 +105,20 @@ function checkStart() {
     printf "\e[?25h""\n"
 }
 function config_datanode(){
-    echo "[step 2]: config datanode."
-    local -a ip_arr
-    local -i index=0
-    local -a subnet_arr
-    for line in $(/sbin/ifconfig -a|grep inet|grep -v 127.0.0.1|grep -v inet6|awk '{print $2}'|tr -d "addr:")
-    do
-        ip_arr[index]=$line
-        subnet_arr[index]=$(echo $line | sed 's/\([0-9]*\.[0-9]*\.[0-9]*\.\)[0-9]*/\10/')
-        let index=$index+1
-    done
-    #清除数组重复值
-    subnet_arr=($(echo ${subnet_arr[*]} | sed 's/ /\n/g' | sort |uniq))
-
+    if [ $RUN_MODE != "standard" ]; then    
+        echo "[step 2]: config datanode."
+        local -a ip_arr
+        local -i index=0
+        local -a subnet_arr
+        for line in $(/sbin/ifconfig -a|grep inet|grep -v 127.0.0.1|grep -v inet6|awk '{print $2}'|tr -d "addr:")
+        do
+            ip_arr[index]=$line
+            subnet_arr[index]=$(echo $line | sed 's/\([0-9]*\.[0-9]*\.[0-9]*\.\)[0-9]*/\10/')
+            let index=$index+1
+        done
+        #清除数组重复值
+        subnet_arr=($(echo ${subnet_arr[*]} | sed 's/ /\n/g' | sort |uniq))
+    fi
     gs_guc set -D $GAUSS_DB -c "port = ${GAUSS_PORT}"  \
     -c "listen_addresses = '*'" \
     -c "local_bind_address = '0.0.0.0'"  \
@@ -133,40 +135,88 @@ function config_datanode(){
     -c "remote_read_mode = off" \
     -c "application_name = '$HOSTNAME'" \
     -c "remote_read_mode = non_authentication"
-    i=1
-    if [[ -z $IP_CLUSTER_ARR ]]; then
-        IP_CLUSTER_ARR="127.0.0.1"
+    if [ $RUN_MODE != "standard" ]; then
+        i=1
+        if [[ -z $IP_CLUSTER_ARR ]]; then
+            IP_CLUSTER_ARR="127.0.0.1"
+        fi
+        local len=$(($PEER_NUM - 1))
+        for i in $(seq 0 ${len}); do
+            gs_guc set -D $GAUSS_DB -c "replconninfo$(($i+1)) = 'localhost=${ip_arr[0]} localport=$(($GAUSS_PORT+1)) localheartbeatport=$(($GAUSS_PORT+5)) localservice=$(($GAUSS_PORT+4))  remotehost=${IP_CLUSTER_ARR[$i]} remoteport=$(($GAUSS_PORT+1)) remoteheartbeatport=$(($GAUSS_PORT+5)) remoteservice=$(($GAUSS_PORT+4))'"
+        done
+        
+        #   TYPE    DATABASE        USER            ADDRESS          METHOD
+        #   host    all             all             10.8.0.0/24      trust
+        #   host    all             all             0.0.0.0/0        sha256
+        #   host    all             all             10.8.0.0/24      trust
     fi
-    local len=$(($PEER_NUM - 1))
-    for i in $(seq 0 ${len}); do
-        gs_guc set -D $GAUSS_DB -c "replconninfo$(($i+1)) = 'localhost=${ip_arr[0]} localport=$(($GAUSS_PORT+1)) localheartbeatport=$(($GAUSS_PORT+5)) localservice=$(($GAUSS_PORT+4))  remotehost=${IP_CLUSTER_ARR[$i]} remoteport=$(($GAUSS_PORT+1)) remoteheartbeatport=$(($GAUSS_PORT+5)) remoteservice=$(($GAUSS_PORT+4))'"
-    done
-    
-    #   TYPE    DATABASE        USER            ADDRESS          METHOD
-    #   host    all             all             10.8.0.0/24      trust
-    #   host    all             all             0.0.0.0/0        sha256
-    #   host    all             all             10.8.0.0/24      trust
     gs_guc set -D $GAUSS_DB -h "host all $GAUSS_USER 0.0.0.0/0  md5"
-    for subnet in $subnet_arr;do
-        gs_guc set -D $GAUSS_DB -h "host all omm $subnet/24  trust"
-    done
+    if [ $RUN_MODE != "standard" ]; then
+        for subnet in $subnet_arr;do
+            gs_guc set -D $GAUSS_DB -h "host all omm $subnet/24  trust"
+        done
+    fi
 }
 function init_db() {    
 
     if [[ ! -f "$GAUSS_CONF/init_db" ]]; then
         if [[ ! -f "$GAUSS_DB/config_single_node" ]]; then
             rm -Rf $GAUSS_DB
-            echo "[step 1]: init data node"
-            gs_initdb -D $GAUSS_DB --nodename=$NODE_NAME -E UTF-8 --locale=en_US.UTF-8 -U omm  -w $GAUSS_PASSWORD
-            config_datanode
-            echo "enable_numa = false" >> "$GAUSS_DB/mot.conf"
-            echo "[step 3]: start single_node." 
-            gs_ctl start -D $GAUSS_DB  -Z single_node -l logfile
-            echo "[step 4]: CREATE USER $GAUSS_USER." 
-            gsql -d postgres -c "CREATE USER $GAUSS_USER WITH SYSADMIN CREATEDB USEFT CREATEROLE INHERIT LOGIN REPLICATION IDENTIFIED BY '$GAUSS_PASSWORD';"
-            if [ $RUN_MODE == "master" ]; then
+            if [ $RUN_MODE != "standard" ]; then
+                echo "[step 1]: init data node"
+                gs_initdb -D $GAUSS_DB --nodename=$NODE_NAME -E UTF-8 --locale=en_US.UTF-8 -U omm  -w $GAUSS_PASSWORD
+                config_datanode
+                echo "enable_numa = false" >> "$GAUSS_DB/mot.conf"
+                echo "[step 3]: start single_node." 
+                gs_ctl start -D $GAUSS_DB  -Z single_node -l logfile
+                echo "[step 4]: CREATE USER $GAUSS_USER." 
+                gsql -d postgres -c "CREATE USER $GAUSS_USER WITH SYSADMIN CREATEDB USEFT CREATEROLE INHERIT LOGIN REPLICATION IDENTIFIED BY '$GAUSS_PASSWORD';"
+                if [ $RUN_MODE == "master" ]; then
+                    echo -e "\033[32m ********************** docker entrypoint initdb *************************\033[0m" 
+                    # master 初始化数据库            
+                    if [ "$GAUSS_DATABASE" ]; then
+                        gsql -d postgres -c "CREATE DATABASE $GAUSS_DATABASE WITH OWNER = $GAUSS_USER ENCODING = 'UTF8' CONNECTION LIMIT = -1;"
+                        # 字符串转小写
+                        GAUSS_DATABASE=$(echo $GAUSS_DATABASE | tr 'A-Z' 'a-z')
+                        for f in /docker-entrypoint-initdb.d/*; do
+                            case "$f" in
+                                *.sql) echo "[Entrypoint] running $f"; gsql -U $GAUSS_USER -W $GAUSS_PASSWORD -d $GAUSS_DATABASE -f "$f" && echo ;;
+                                *)     echo "[Entrypoint] ignoring $f" ;;
+                            esac
+                            echo
+                        done
+                    fi
+                fi
+                echo $(date) "- single_node ok" > $GAUSS_DB/config_single_node
+                set +e
+                while :
+                do
+                    echo "[step 5]: stop single_node."
+                    if [[ ! -f "$GAUSS_DB/postmaster.pid" ]]; then
+                        # 防止服务已停止导致死循环
+                        break
+                    fi
+                    gs_ctl -D $GAUSS_DB -m fast -w stop
+                    if [ $? -eq 0 ]; then
+                        break
+                    else
+                        echo -e "\033[31m ==> errcode=$?\033[0m"
+                        echo -e "\033[31m ==>build failed\033[0m"
+                        sleep 1s                        
+                    fi
+                done            
+                set -e
+                echo "[step 6]:first Start OpenGauss"
+                first_Start_OpenGauss
+            else
+                echo "[step 1]: init data"
+                gs_initdb -D $GAUSS_DB --nodename='single_node' -E UTF-8 --locale=en_US.UTF-8 -U omm  -w $GAUSS_PASSWORD
+                config_datanode
+                gs_ctl start -D $GAUSS_DB
+                echo "[step 4]: CREATE USER $GAUSS_USER." 
+                gsql -d postgres -c "CREATE USER $GAUSS_USER WITH SYSADMIN CREATEDB USEFT CREATEROLE INHERIT LOGIN REPLICATION IDENTIFIED BY '$GAUSS_PASSWORD';"
                 echo -e "\033[32m ********************** docker entrypoint initdb *************************\033[0m" 
-                # master 初始化数据库            
+                # 初始化数据库            
                 if [ "$GAUSS_DATABASE" ]; then
                     gsql -d postgres -c "CREATE DATABASE $GAUSS_DATABASE WITH OWNER = $GAUSS_USER ENCODING = 'UTF8' CONNECTION LIMIT = -1;"
                     # 字符串转小写
@@ -180,29 +230,13 @@ function init_db() {
                     done
                 fi
             fi
-            echo $(date) "- single_node ok" > $GAUSS_DB/config_single_node
-            set +e
-            while :
-            do
-                echo "[step 5]: stop single_node."
-                gs_ctl -D $GAUSS_DB -m fast -w stop
-                if [ $? -eq 0 ]; then
-                    break
-                else
-                    echo -e "\033[31m ==> errcode=$?\033[0m"
-                    echo -e "\033[31m ==>build failed\033[0m"
-                    sleep 1s
-                fi
-            done            
-            set -e
         fi
-
-        echo "[step 6]:first Start OpenGauss"
-        first_Start_OpenGauss        
         echo -e "\033[32m **********************Open Gauss initialization completed*************************\033[0m"        
         echo $(date) "- init ok" > $GAUSS_CONF/init_db
     else
-        config_datanode
+        if [ $RUN_MODE != "standard" ]; then
+            config_datanode
+        fi
     fi
 }
 
@@ -385,21 +419,31 @@ function start_etcd(){
 
 }
 function start_db(){
-    echo "change patroni config"
-    set_patroni_config    
-    echo -e "\033[32m ==> Start $(patroni --version) Server... \033[0m"
-    exec patroni $GAUSS_CONF/patroni.yaml 2>&1 | tee $LOGS_HOME/patroni.log
-    #nohup patroni $GAUSS_CONF/patroni.yaml  | tee $LOGS_HOME/patroni.log 2>&1 &
+    if [ $RUN_MODE != "standard" ]; then
+        echo "change patroni config"
+        set_patroni_config    
+        echo -e "\033[32m ==> Start $(patroni --version) Server... \033[0m"
+        exec patroni $GAUSS_CONF/patroni.yaml 2>&1 | tee $LOGS_HOME/patroni.log
+        #nohup patroni $GAUSS_CONF/patroni.yaml  | tee $LOGS_HOME/patroni.log 2>&1 &        
+    else
+        echo -e "\033[32m ==> Start $(gaussdb -V)<== \033[0m"
+        gs_ctl restart -D "$GAUSS_DB"  -M primary
+    fi
     echo -e "\033[32m ==> $(gaussdb -V)<== \033[0m"
 }
 
 function stop_db(){
-    echo -e "\033[31m ==> Stop $(etcd --version | grep etcd) Server... \033[0m"
-    kill -9 $(ps -ef|grep etcd|gawk '$0 !~/grep/ {print $2}' |tr -s '\n' ' ')
-    echo -e "\033[31m ==> Stop $(patroni --version) Server... \033[0m"
-    kill -9 $(ps -ef|grep patroni|gawk '$0 !~/grep/ {print $2}' |tr -s '\n' ' ')
-    echo -e "\033[31m ==> Stop $(gaussdb -V)<== \033[0m"
-    gs_ctl stop -D $GAUSS_DB
+    if [ $RUN_MODE != "standard" ]; then
+        echo -e "\033[31m ==> Stop $(etcd --version | grep etcd) Server... \033[0m"
+        kill -9 $(ps -ef|grep etcd|gawk '$0 !~/grep/ {print $2}' |tr -s '\n' ' ')
+        echo -e "\033[31m ==> Stop $(patroni --version) Server... \033[0m"
+        kill -9 $(ps -ef|grep patroni|gawk '$0 !~/grep/ {print $2}' |tr -s '\n' ' ')
+        echo -e "\033[31m ==> Stop $(gaussdb -V)<== \033[0m"
+        gs_ctl stop -D $GAUSS_DB
+    else
+        echo -e "\033[31m ==> Stop $(gaussdb -V)<== \033[0m"
+        gs_ctl stop -D "$GAUSS_DB"
+    fi
 }
 
 function status_db(){
@@ -412,7 +456,9 @@ function status_db(){
 }
 echo "==> START Service ..."
 set_environment
-start_etcd
+if [ $RUN_MODE != "standard" ]; then    
+    start_etcd
+fi
 init_db
 start_db
 status_db

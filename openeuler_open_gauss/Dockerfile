@@ -85,7 +85,8 @@ RUN  /usr/local/python3.7/bin/python3.7 -m pip install --upgrade pip --user && \
     pip install -r requirements.txt --user && \
     python setup.py build && python setup.py install --user && \
     rm -rf /opt/software/patroni_openGauss
-
+RUN mkdir -p /opt/software/openGauss/data && \
+    mkdir -p /opt/software/openGauss/logs
 USER root
 RUN yum clean all 
 RUN mkdir -p /docker-entrypoint-initdb.d
