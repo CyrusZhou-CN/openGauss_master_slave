@@ -1,3 +1,5 @@
+# 单机运行
+docker run -p 5432:5432 -e 'GAUSS_USER=gauss'  -e 'GAUSS_PASSWORD=Gauss666' -d --name OpenGaussTest lsqtzj/openeuler_open_gauss:latest
 # openGauss 高可用集群说明
 openGauss 极简版 基于openeuler/openeuler:20.03</br>
 包括 patroni自动主备切换，haproxy 负载均衡， pgAdmin4 管理工具</br>
