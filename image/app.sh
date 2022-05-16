@@ -4,11 +4,13 @@
 source /etc/profile
 # default config
 if [ -z "${GAUSS_PASSWORD}" ]; then
-    echo "Error: No PASSWORD environment"
+    echo "Error: No GAUSS_PASSWORD environment"
+    echo "Example: -eGAUSS_PASSWORD=Gauss666"
     exit 0
 fi
 if [ -z "${GAUSS_USER}" ]; then
-    echo "Error: No GAUSS USER environment"
+    echo "Error: No GAUSS_USER environment"
+    echo "Example: -eGAUSS_USER=gauss"
     exit 0
 fi
 if [ -z "${RUN_MODE}" ]; then
